@@ -8,6 +8,7 @@
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
 #include "util/concurrent_arena.h"
+#include <boost/fiber/fss.hpp>
 #include <thread>
 #include "port/port.h"
 #include "util/random.h"
@@ -15,7 +16,7 @@
 namespace rocksdb {
 
 #ifdef ROCKSDB_SUPPORT_THREAD_LOCAL
-photon::thread_local_ptr<size_t, size_t> ConcurrentArena::tls_cpuid(0);
+boost::fibers::fiber_specific_ptr<size_t> ConcurrentArena::tls_cpuid;
 #endif
 
 namespace {

@@ -4,13 +4,14 @@
 //  (found in the LICENSE.Apache file in the root directory).
 //
 #pragma once
+#include <boost/fiber/fss.hpp>
 #include "rocksdb/perf_level.h"
 #include "port/port.h"
 
 namespace rocksdb {
 
 #ifdef ROCKSDB_SUPPORT_THREAD_LOCAL
-extern photon::thread_local_ptr<PerfLevel, PerfLevel> perf_level;
+extern boost::fibers::fiber_specific_ptr<PerfLevel> perf_level;
 #else
 extern PerfLevel perf_level;
 #endif

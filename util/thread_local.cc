@@ -11,6 +11,9 @@
 #include "util/mutexlock.h"
 #include "port/likely.h"
 #include <stdlib.h>
+#include <boost/fiber/fss.hpp>
+#include <boost/thread/detail/thread.hpp>
+#include <boost/thread/tss.hpp>
 
 namespace rocksdb {
 
@@ -142,17 +145,17 @@ private:
   port::Mutex mutex_;
 #ifdef ROCKSDB_SUPPORT_THREAD_LOCAL
   // Thread local storage
-  static photon::thread_local_ptr<ThreadData*, ThreadData*> tls_;
+  static boost::thread_specific_ptr<ThreadData*> tls_;
 #endif
 
   // Used to make thread exit trigger possible if !defined(OS_MACOSX).
   // Otherwise, used to retrieve thread data.
-  photon::thread_key_t pthread_key_;
+  uint64_t pthread_key_;
 };
 
 
 #ifdef ROCKSDB_SUPPORT_THREAD_LOCAL
-photon::thread_local_ptr<ThreadData*, ThreadData*> ThreadLocalPtr::StaticMeta::tls_(nullptr);
+boost::fibers::fiber_specific_ptr<ThreadData*> ThreadLocalPtr::StaticMeta::tls_;
 #endif
 
 // Windows doesn't support a per-thread destructor with its
@@ -285,6 +288,7 @@ void ThreadLocalPtr::StaticMeta::OnThreadExit(void* ptr) {
   // scope here in case this OnThreadExit is called after the main thread
   // dies.
   auto* inst = tls->inst;
+  inst->
   photon::thread_setspecific(inst->pthread_key_, nullptr);
 
   MutexLock l(inst->MemberMutex());
@@ -351,7 +355,7 @@ ThreadData* ThreadLocalPtr::StaticMeta::GetThreadLocal() {
 
   if (UNLIKELY(*tls_ == nullptr)) {
     auto* inst = Instance();
-    *tls_ = new ThreadData(inst);
+    tls_.reset(new ThreadData(inst));
     {
       // Register it in the global chain, needs to be done before thread exit
       // handler registration

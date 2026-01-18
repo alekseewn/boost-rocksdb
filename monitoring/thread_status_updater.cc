@@ -4,6 +4,7 @@
 //  (found in the LICENSE.Apache file in the root directory).
 
 #include "monitoring/thread_status_updater.h"
+#include <boost/fiber/fss.hpp>
 #include <memory>
 #include "port/likely.h"
 #include "rocksdb/env.h"
@@ -13,7 +14,7 @@ namespace rocksdb {
 
 #ifdef ROCKSDB_USING_THREAD_STATUS
 
-photon::thread_local_ptr<ThreadStatusData*, ThreadStatusData*> ThreadStatusUpdater::thread_status_data_ptr_(nullptr);
+boost::fibers::fiber_specific_ptr<ThreadStatusData*> ThreadStatusUpdater::thread_status_data_ptr_;
 #define thread_status_data_ (*thread_status_data_ptr_)
 
 void ThreadStatusUpdater::RegisterThread(ThreadStatus::ThreadType ttype,

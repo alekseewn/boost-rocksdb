@@ -12,6 +12,8 @@
 #include "rocksdb/env.h"
 #include "rocksdb/thread_status.h"
 
+#include <boost/fiber/fss.hpp>
+
 namespace rocksdb {
 
 class ColumnFamilyData;
@@ -94,7 +96,7 @@ class ThreadStatusUtil {
   // When this variable is set to true, thread_updater_local_cache_
   // will not be updated until this variable is again set to false
   // in UnregisterThread().
-  static photon::thread_local_ptr<bool, bool> thread_updater_initialized_ptr_;
+  static boost::fibers::fiber_specific_ptr<bool> thread_updater_initialized_ptr_;
 
   // The thread-local cached ThreadStatusUpdater that caches the
   // thread_status_updater_ of the first Env that uses any ThreadStatusUtil
@@ -109,7 +111,7 @@ class ThreadStatusUtil {
   // When thread_updater_initialized_ is set to true, this variable
   // will not be updated until this thread_updater_initialized_ is
   // again set to false in UnregisterThread().
-  static photon::thread_local_ptr<ThreadStatusUpdater*, ThreadStatusUpdater*> thread_updater_local_cache_ptr_;
+  static boost::fibers::fiber_specific_ptr<ThreadStatusUpdater*> thread_updater_local_cache_ptr_;
 
 #else
   static bool thread_updater_initialized_;

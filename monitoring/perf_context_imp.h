@@ -4,6 +4,7 @@
 //  (found in the LICENSE.Apache file in the root directory).
 //
 #pragma once
+#include <boost/fiber/fss.hpp>
 #include "monitoring/perf_step_timer.h"
 #include "rocksdb/perf_context.h"
 #include "util/stop_watch.h"
@@ -16,7 +17,7 @@ extern PerfContext perf_context;
 extern __thread PerfContext perf_context_;
 #define perf_context (*get_perf_context())
 #else
-extern photon::thread_local_ptr<PerfContext> perf_context;
+extern boost::fibers::fiber_specific_ptr<PerfContext> perf_context;
 #endif
 #endif
 

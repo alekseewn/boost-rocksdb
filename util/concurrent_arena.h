@@ -9,6 +9,7 @@
 
 #pragma once
 #include <atomic>
+#include <cstddef>
 #include <memory>
 #include <utility>
 #include "port/likely.h"
@@ -17,6 +18,9 @@
 #include "util/core_local.h"
 #include "util/mutexlock.h"
 #include "util/thread_local.h"
+
+#include <boost/fiber/fss.hpp>
+
 
 // Only generate field unused warning for padding array, or build under
 // GCC 4.8.1 will fail.
@@ -95,7 +99,7 @@ class ConcurrentArena : public Allocator {
   };
 
 #ifdef ROCKSDB_SUPPORT_THREAD_LOCAL
-  static photon::thread_local_ptr<size_t, size_t> tls_cpuid;
+  static boost::fibers::fiber_specific_ptr<size_t> tls_cpuid;
 #else
   enum ZeroFirstEnum : size_t { tls_cpuid = 0 };
 #endif

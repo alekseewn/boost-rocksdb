@@ -46,7 +46,9 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/modules/")
 
 # Photon
 set(PHOTON_ENABLE_URING OFF CACHE INTERNAL "Enable iouring")
-add_subdirectory(third-party/PhotonLibOS)
+# add_subdirectory(third-party/PhotonLibOS)
+add_compile_options(-w)
+find_package(Boost REQUIRED COMPONENTS fiber context thread)
 if (PHOTON_ENABLE_URING)
     add_compile_definitions("PHOTON_ENABLE_URING")
 endif ()
