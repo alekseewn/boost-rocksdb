@@ -3,6 +3,8 @@
 //  COPYING file in the root directory) and Apache 2.0 License
 //  (found in the LICENSE.Apache file in the root directory).
 
+#include <boost/fiber/fss.hpp>
+#include <boost/thread/tss.hpp>
 #include <sstream>
 #include "monitoring/iostats_context_imp.h"
 #include "rocksdb/env.h"
@@ -10,7 +12,7 @@
 namespace rocksdb {
 
 #ifdef ROCKSDB_SUPPORT_THREAD_LOCAL
-photon::thread_local_ptr<IOStatsContext> iostats_context;
+boost::thread_specific_ptr<IOStatsContext> iostats_context;
 #endif
 
 IOStatsContext* get_iostats_context() {

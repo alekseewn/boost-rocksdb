@@ -46,7 +46,18 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/modules/")
 
 # Photon
 set(PHOTON_ENABLE_URING OFF CACHE INTERNAL "Enable iouring")
-add_subdirectory(third-party/PhotonLibOS)
+# add_subdirectory(third-party/PhotonLibOS)
+add_compile_options(-w)
+# find_package(Boost REQUIRED COMPONENTS fiber context thread)
+find_package(Boost REQUIRED COMPONENTS fiber context thread)
+if (Boost_FOUND)
+    message(STATUS "Found Boost: ${Boost_VERSION}")
+    message(STATUS "Boost libraries: ${Boost_LIBRARIES}")
+    include_directories(${Boost_INCLUDE_DIRS})
+    list(APPEND THIRDPARTY_LIBS ${Boost_LIBRARIES})
+else()
+    message(FATAL_ERROR "Boost not found")
+endif()
 if (PHOTON_ENABLE_URING)
     add_compile_definitions("PHOTON_ENABLE_URING")
 endif ()
@@ -753,7 +764,9 @@ else()
 
   add_library(${ROCKSDB_SHARED_LIB} SHARED ${SOURCES})
   target_link_libraries(${ROCKSDB_SHARED_LIB}
-    ${THIRDPARTY_LIBS} ${SYSTEM_LIBS} $<BUILD_INTERFACE:photon_static>)
+    ${THIRDPARTY_LIBS} ${SYSTEM_LIBS}
+    # $<BUILD_INTERFACE:photon_static>
+    )
   set_target_properties(${ROCKSDB_SHARED_LIB} PROPERTIES
                         LINKER_LANGUAGE CXX
                         VERSION ${ROCKSDB_VERSION}
@@ -764,7 +777,9 @@ endif()
 
 add_library(${ROCKSDB_STATIC_LIB} STATIC ${SOURCES})
 target_link_libraries(${ROCKSDB_STATIC_LIB}
-  ${THIRDPARTY_LIBS} ${SYSTEM_LIBS} $<BUILD_INTERFACE:photon_static>)
+  ${THIRDPARTY_LIBS} ${SYSTEM_LIBS} 
+  #$<BUILD_INTERFACE:photon_static>
+  )
 
 if(WIN32)
   add_library(${ROCKSDB_IMPORT_LIB} SHARED ${SOURCES})

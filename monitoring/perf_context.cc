@@ -4,6 +4,8 @@
 //  (found in the LICENSE.Apache file in the root directory).
 //
 
+#include <boost/fiber/fss.hpp>
+#include <boost/thread/tss.hpp>
 #include <sstream>
 #include "monitoring/perf_context_imp.h"
 
@@ -15,7 +17,7 @@ PerfContext perf_context;
 #if defined(OS_SOLARIS)
 __thread PerfContext perf_context_;
 #else
-photon::thread_local_ptr<PerfContext> perf_context;
+boost::thread_specific_ptr<PerfContext> perf_context;
 #endif
 #endif
 

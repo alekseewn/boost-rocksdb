@@ -28,6 +28,8 @@
 // returned by the GetThreadList() is guaranteed to be consistent.
 #pragma once
 #include <atomic>
+#include <boost/fiber/fss.hpp>
+#include <boost/thread/tss.hpp>
 #include <list>
 #include <memory>
 #include <mutex>
@@ -196,7 +198,7 @@ class ThreadStatusUpdater {
  protected:
 #ifdef ROCKSDB_USING_THREAD_STATUS
   // The thread-local variable for storing thread status.
-  static photon::thread_local_ptr<ThreadStatusData*, ThreadStatusData*> thread_status_data_ptr_;
+  static boost::thread_specific_ptr<ThreadStatusData*> thread_status_data_ptr_;
 
   // Returns the pointer to the thread status data only when the
   // thread status data is non-null and has enable_tracking == true.

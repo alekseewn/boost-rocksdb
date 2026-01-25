@@ -4,13 +4,16 @@
 //  (found in the LICENSE.Apache file in the root directory).
 //
 
+#include "rocksdb/perf_level.h"
 #include <assert.h>
+#include <boost/fiber/fss.hpp>
+#include <boost/thread/tss.hpp>
 #include "monitoring/perf_level_imp.h"
 
 namespace rocksdb {
 
 #ifdef ROCKSDB_SUPPORT_THREAD_LOCAL
-photon::thread_local_ptr<PerfLevel, PerfLevel> perf_level(kEnableCount);
+boost::thread_specific_ptr<PerfLevel> perf_level/*(kEnableCount)*/;
 #else
 PerfLevel perf_level = kEnableCount;
 #endif
