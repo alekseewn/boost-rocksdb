@@ -5,12 +5,13 @@
 //
 #pragma once
 #include <boost/fiber/fss.hpp>
+#include <boost/thread/tss.hpp>
 #include "monitoring/perf_step_timer.h"
 #include "rocksdb/iostats_context.h"
 
 #ifdef ROCKSDB_SUPPORT_THREAD_LOCAL
 namespace rocksdb {
-extern boost::fibers::fiber_specific_ptr<IOStatsContext> iostats_context;
+extern boost::thread_specific_ptr<IOStatsContext> iostats_context;
 }  // namespace rocksdb
 
 // increment a specific counter by the specified value

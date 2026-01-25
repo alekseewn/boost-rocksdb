@@ -5,13 +5,14 @@
 //
 #pragma once
 #include <boost/fiber/fss.hpp>
+#include <boost/thread/tss.hpp>
 #include "rocksdb/perf_level.h"
 #include "port/port.h"
 
 namespace rocksdb {
 
 #ifdef ROCKSDB_SUPPORT_THREAD_LOCAL
-extern boost::fibers::fiber_specific_ptr<PerfLevel> perf_level;
+extern boost::thread_specific_ptr<PerfLevel> perf_level;
 #else
 extern PerfLevel perf_level;
 #endif

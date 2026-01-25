@@ -5,6 +5,7 @@
 //
 
 #include <boost/fiber/fss.hpp>
+#include <boost/thread/tss.hpp>
 #include <sstream>
 #include "monitoring/perf_context_imp.h"
 
@@ -16,7 +17,7 @@ PerfContext perf_context;
 #if defined(OS_SOLARIS)
 __thread PerfContext perf_context_;
 #else
-boost::fibers::fiber_specific_ptr<PerfContext> perf_context;
+boost::thread_specific_ptr<PerfContext> perf_context;
 #endif
 #endif
 
