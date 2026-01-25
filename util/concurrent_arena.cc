@@ -9,6 +9,7 @@
 
 #include "util/concurrent_arena.h"
 #include <boost/fiber/fss.hpp>
+#include <boost/thread/tss.hpp>
 #include <thread>
 #include "port/port.h"
 #include "util/random.h"
@@ -16,7 +17,7 @@
 namespace rocksdb {
 
 #ifdef ROCKSDB_SUPPORT_THREAD_LOCAL
-boost::fibers::fiber_specific_ptr<size_t> ConcurrentArena::tls_cpuid;
+boost::thread_specific_ptr<size_t> ConcurrentArena::tls_cpuid;
 #endif
 
 namespace {
