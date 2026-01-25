@@ -356,7 +356,7 @@ ThreadData* ThreadLocalPtr::StaticMeta::GetThreadLocal() {
 
   if (UNLIKELY(tls_.get() == nullptr)) {
     auto* inst = Instance();
-    tls_.reset();
+    tls_.reset(new ThreadData(inst));
     {
       // Register it in the global chain, needs to be done before thread exit
       // handler registration
