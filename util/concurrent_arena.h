@@ -9,6 +9,8 @@
 
 #pragma once
 #include <atomic>
+#include <boost/thread/detail/thread.hpp>
+#include <boost/thread/tss.hpp>
 #include <cstddef>
 #include <memory>
 #include <utility>
@@ -99,7 +101,7 @@ class ConcurrentArena : public Allocator {
   };
 
 #ifdef ROCKSDB_SUPPORT_THREAD_LOCAL
-  static boost::fibers::fiber_specific_ptr<size_t> tls_cpuid;
+  static boost::thread_specific_ptr<size_t> tls_cpuid;
 #else
   enum ZeroFirstEnum : size_t { tls_cpuid = 0 };
 #endif
