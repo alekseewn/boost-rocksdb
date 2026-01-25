@@ -155,7 +155,7 @@ private:
 
 
 #ifdef ROCKSDB_SUPPORT_THREAD_LOCAL
-boost::fibers::fiber_specific_ptr<ThreadData*> ThreadLocalPtr::StaticMeta::tls_;
+boost::thread_specific_ptr<ThreadData*> ThreadLocalPtr::StaticMeta::tls_;
 #endif
 
 // Windows doesn't support a per-thread destructor with its
@@ -288,8 +288,9 @@ void ThreadLocalPtr::StaticMeta::OnThreadExit(void* ptr) {
   // scope here in case this OnThreadExit is called after the main thread
   // dies.
   auto* inst = tls->inst;
-  inst->
-  photon::thread_setspecific(inst->pthread_key_, nullptr);
+  // TODO
+  
+  // photon::thread_setspecific(inst->pthread_key_, nullptr);
 
   MutexLock l(inst->MemberMutex());
   inst->RemoveThreadData(tls);
@@ -313,9 +314,9 @@ ThreadLocalPtr::StaticMeta::StaticMeta()
   : next_instance_id_(0),
     head_(this),
     pthread_key_(0) {
-  if (photon::thread_key_create(&pthread_key_, &OnThreadExit) != 0) {
-    abort();
-  }
+  // if (photon::thread_key_create(&pthread_key_, &OnThreadExit) != 0) {
+  //   abort();
+  // }
 
   // Photon's thread key has already supported destruction on main thread
 
@@ -355,7 +356,7 @@ ThreadData* ThreadLocalPtr::StaticMeta::GetThreadLocal() {
 
   if (UNLIKELY(*tls_ == nullptr)) {
     auto* inst = Instance();
-    tls_.reset(new ThreadData(inst));
+    tls_.reset();
     {
       // Register it in the global chain, needs to be done before thread exit
       // handler registration
@@ -364,7 +365,7 @@ ThreadData* ThreadLocalPtr::StaticMeta::GetThreadLocal() {
     }
     // Even it is not OS_MACOSX, need to register value for pthread_key_ so that
     // its exit handler will be triggered.
-    if (photon::thread_setspecific(inst->pthread_key_, *tls_) != 0) {
+    if (tls_.release() != 0) {
       {
         MutexLock l(Mutex());
         inst->RemoveThreadData(*tls_);

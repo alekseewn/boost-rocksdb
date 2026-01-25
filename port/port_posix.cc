@@ -10,6 +10,10 @@
 #include "port/port_posix.h"
 
 #include <assert.h>
+#include <boost/fiber/condition_variable.hpp>
+#include <boost/fiber/mutex.hpp>
+#include <chrono>
+#include <mutex>
 #if defined(__i386__) || defined(__x86_64__)
 #include <cpuid.h>
 #endif
@@ -85,7 +89,8 @@ void CondVar::Wait() {
 #ifndef NDEBUG
   mu_->locked_ = false;
 #endif
-  cv_.wait(mu_->mu_);
+  std::unique_lock<boost::fibers::mutex> ul(mu_->mu_);
+  cv_.wait(ul);
 #ifndef NDEBUG
   mu_->locked_ = true;
 #endif
@@ -98,11 +103,13 @@ bool CondVar::TimedWait(uint64_t abs_time_us) {
   auto abs_now_us = std::chrono::duration_cast<std::chrono::microseconds>(
                         std::chrono::system_clock::now().time_since_epoch()).count();
   uint64_t timeout = abs_time_us > uint64_t(abs_now_us) ? abs_time_us - abs_now_us : 0;
-  int ret = cv_.wait(mu_->mu_, timeout);
+  std::unique_lock<boost::fibers::mutex> ul(mu_->mu_);
+  std::chrono::duration<uint64_t, std::micro> duration(timeout);
+  boost::fibers::cv_status ret = cv_.wait_for(ul, duration);
 #ifndef NDEBUG
   mu_->locked_ = true;
 #endif
-  if (ret != 0 || timeout == 0) {
+  if (ret != boost::fibers::cv_status::no_timeout || timeout == 0) {
     return true;
   }
   return false;
@@ -121,9 +128,9 @@ RWMutex::RWMutex() {
 
 RWMutex::~RWMutex() { }
 
-void RWMutex::ReadLock() {  mu_.lock(photon::RLOCK); }
+void RWMutex::ReadLock() {  mu_.lock(); } // NO BOOST RWLOCK
 
-void RWMutex::WriteLock() { mu_.lock(photon::WLOCK); }
+void RWMutex::WriteLock() { mu_.lock(); } 
 
 void RWMutex::ReadUnlock() { mu_.unlock(); }
 
