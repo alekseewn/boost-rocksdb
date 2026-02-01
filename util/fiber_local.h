@@ -4,18 +4,22 @@
 template<typename T>
 struct FiberLocal {
     boost::thread_specific_ptr<T> value;
-    T* init_value;
+    T init_value;
 
-    template<typename... Args>
-    FiberLocal(Args&&... args) {
-      init_value = new T(std::forward<Args>(args)...);
+    // template<typename... Args>
+    // FiberLocal(Args&&... args) {
+      // init_value = new T(std::forward<Args>(args)...);
+    // }
+
+    FiberLocal(T init) {
+      init_value = init;
     }
 
     FiberLocal() = default;
 
     T* get_or_init() {
       if (value == nullptr) {
-        value.reset(init_value);
+        value.reset(new T(init_value));
       }
     }
 
