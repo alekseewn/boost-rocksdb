@@ -8,6 +8,7 @@
 #include <boost/thread/tss.hpp>
 #include <sstream>
 #include "monitoring/perf_context_imp.h"
+#include "monitoring/perf_level_imp.h"
 
 namespace rocksdb {
 
@@ -17,7 +18,7 @@ PerfContext perf_context;
 #if defined(OS_SOLARIS)
 __thread PerfContext perf_context_;
 #else
-boost::thread_specific_ptr<PerfContext> perf_context;
+FiberLocal<PerfContext> perf_context;
 #endif
 #endif
 

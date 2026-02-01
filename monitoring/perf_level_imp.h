@@ -8,11 +8,12 @@
 #include <boost/thread/tss.hpp>
 #include "rocksdb/perf_level.h"
 #include "port/port.h"
+#include "util/fiber_local.h"
 
 namespace rocksdb {
 
 #ifdef ROCKSDB_SUPPORT_THREAD_LOCAL
-extern boost::thread_specific_ptr<PerfLevel> perf_level;
+extern FiberLocal<PerfLevel> perf_level;
 #else
 extern PerfLevel perf_level;
 #endif

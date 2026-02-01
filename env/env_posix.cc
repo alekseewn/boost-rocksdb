@@ -9,9 +9,11 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <boost/fiber/context.hpp>
 #include <boost/thread/detail/thread.hpp>
 #include <cstdint>
 #include <functional>
+#include <string>
 #include <thread>
 #if defined(OS_LINUX)
 #include <linux/fs.h>
@@ -71,6 +73,10 @@
 #define EXT4_SUPER_MAGIC 0xEF53
 #endif
 
+void LOG_INFO(char* log) {
+  std::cout << log << std::endl;
+}
+
 namespace rocksdb {
 
 namespace {
@@ -123,7 +129,7 @@ class PosixEnv : public Env {
   PosixEnv();
 
   ~PosixEnv() override {
-    // LOG_INFO("global PosixEnv destruct: Join thread pools");
+    LOG_INFO("global BOOSTEnv destruct: Join thread pools");
     for (auto& tid : threads_to_join_) {
       tid.join();
     }
@@ -764,7 +770,7 @@ class PosixEnv : public Env {
     return thread_status_updater_->GetThreadList(thread_list);
   }
   static uint64_t gettid() {
-    return std::hash<std::thread::id>{}(std::this_thread::get_id());
+    return std::hash<boost::fibers::context::id>{}(boost::fibers::context::id());
   }
 
   uint64_t GetThreadID() const override { return gettid(); }
@@ -1017,7 +1023,7 @@ PosixEnv::PosixEnv()
       page_size_(getpagesize()),
       thread_pools_(Priority::TOTAL),
       allow_non_owner_access_(true) {
-  // LOG_INFO("global PosixEnv construct: Create thread pools");
+  LOG_INFO("global PosixEnv construct: Create thread pools");
   for (int pool_id = 0; pool_id < Env::Priority::TOTAL; ++pool_id) {
     thread_pools_[pool_id].SetThreadPriority(
         static_cast<Env::Priority>(pool_id));
@@ -1097,7 +1103,7 @@ std::string Env::GenerateUniqueId() {
 }
 
 PhotonEnv::PhotonEnv(int vcpu_num, int ev_engine) {
-    // LOG_INFO("Begin init Photon Env");
+    LOG_INFO("Begin init BOOST Env");
     // set_log_output_level(ALOG_INFO);
     // int ret = photon::init(ev_engine, photon::INIT_IO_NONE);
     // if (ret != 0) {
@@ -1109,14 +1115,14 @@ PhotonEnv::PhotonEnv(int vcpu_num, int ev_engine) {
     //     LOG_FATAL("Work-pool init failed");
     //     abort();
     // }
-    // LOG_INFO("End init Photon Env");
+    LOG_INFO("End init BOOST Env");
 }
 
 PhotonEnv::~PhotonEnv() {
-    // LOG_INFO("Begin destruct Photon Env");
+    LOG_INFO("Begin destruct BOOST Env");
     // photon_std::work_pool_fini();
     // photon::fini();
-    // LOG_INFO("End destruct Photon Env");
+    LOG_INFO("End destruct BOOST Env");
 }
 
 //

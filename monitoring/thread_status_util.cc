@@ -6,14 +6,15 @@
 #include "monitoring/thread_status_util.h"
 #include <boost/fiber/fss.hpp>
 
+#include "monitoring/perf_level_imp.h"
 #include "monitoring/thread_status_updater.h"
 #include "rocksdb/env.h"
 
 namespace rocksdb {
 
 #ifdef ROCKSDB_USING_THREAD_STATUS
-boost::fibers::fiber_specific_ptr<ThreadStatusUpdater*> ThreadStatusUtil::thread_updater_local_cache_ptr_;
-boost::fibers::fiber_specific_ptr<bool> ThreadStatusUtil::thread_updater_initialized_ptr_;
+FiberLocal<ThreadStatusUpdater*> ThreadStatusUtil::thread_updater_local_cache_ptr_;
+FiberLocal<bool> ThreadStatusUtil::thread_updater_initialized_ptr_(false);
 
 
 #define thread_updater_initialized_ (*thread_updater_initialized_ptr_)

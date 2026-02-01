@@ -11,13 +11,14 @@
 #include <boost/fiber/fss.hpp>
 #include <boost/thread/tss.hpp>
 #include <thread>
+#include "monitoring/perf_level_imp.h"
 #include "port/port.h"
 #include "util/random.h"
 
 namespace rocksdb {
 
 #ifdef ROCKSDB_SUPPORT_THREAD_LOCAL
-boost::thread_specific_ptr<size_t> ConcurrentArena::tls_cpuid;
+FiberLocal<size_t> ConcurrentArena::tls_cpuid(0);
 #endif
 
 namespace {

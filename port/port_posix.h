@@ -12,6 +12,7 @@
 #pragma once
 #include <boost/fiber/fiber.hpp>
 #include <boost/fiber/mutex.hpp>  
+#include <boost/fiber/context.hpp>
 #include <boost/fiber/condition_variable.hpp>
 #include <boost/thread/thread.hpp>
 /*
@@ -161,11 +162,11 @@ class CondVar {
   void Signal();
   void SignalAll();
  private:
-  boost::fibers::condition_variable cv_;
+  boost::fibers::condition_variable_any cv_;
   Mutex* mu_;
 };
 
-using Thread = boost::thread;
+using Thread = std::thread;
 
 static inline void AsmVolatilePause() {
 #if defined(__i386__) || defined(__x86_64__)

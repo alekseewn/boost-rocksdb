@@ -89,8 +89,7 @@ void CondVar::Wait() {
 #ifndef NDEBUG
   mu_->locked_ = false;
 #endif
-  std::unique_lock<boost::fibers::mutex> ul(mu_->mu_);
-  cv_.wait(ul);
+  cv_.wait(mu_->mu_);
 #ifndef NDEBUG
   mu_->locked_ = true;
 #endif
@@ -103,9 +102,8 @@ bool CondVar::TimedWait(uint64_t abs_time_us) {
   auto abs_now_us = std::chrono::duration_cast<std::chrono::microseconds>(
                         std::chrono::system_clock::now().time_since_epoch()).count();
   uint64_t timeout = abs_time_us > uint64_t(abs_now_us) ? abs_time_us - abs_now_us : 0;
-  std::unique_lock<boost::fibers::mutex> ul(mu_->mu_);
   std::chrono::duration<uint64_t, std::micro> duration(timeout);
-  boost::fibers::cv_status ret = cv_.wait_for(ul, duration);
+  boost::fibers::cv_status ret = cv_.wait_for(mu_->mu_, duration);
 #ifndef NDEBUG
   mu_->locked_ = true;
 #endif

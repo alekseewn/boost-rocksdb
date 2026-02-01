@@ -8,12 +8,14 @@
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
 #include "util/thread_local.h"
+#include "monitoring/perf_level_imp.h"
 #include "util/mutexlock.h"
 #include "port/likely.h"
 #include <stdlib.h>
 #include <boost/fiber/fss.hpp>
 #include <boost/thread/detail/thread.hpp>
 #include <boost/thread/tss.hpp>
+#include <cstdint>
 
 namespace rocksdb {
 
@@ -145,17 +147,20 @@ private:
   port::Mutex mutex_;
 #ifdef ROCKSDB_SUPPORT_THREAD_LOCAL
   // Thread local storage
-  static boost::thread_specific_ptr<ThreadData> tls_;
+  static FiberLocal<ThreadData> tls_;
 #endif
 
   // Used to make thread exit trigger possible if !defined(OS_MACOSX).
   // Otherwise, used to retrieve thread data.
-  uint64_t pthread_key_;
+  struct ThreadKey {
+      std::string pthread_key_;
+  };
+  ThreadKey pthread_key_;
 };
 
 
 #ifdef ROCKSDB_SUPPORT_THREAD_LOCAL
-boost::thread_specific_ptr<ThreadData> ThreadLocalPtr::StaticMeta::tls_;
+FiberLocal<ThreadData> ThreadLocalPtr::StaticMeta::tls_;
 #endif
 
 // Windows doesn't support a per-thread destructor with its
@@ -313,7 +318,7 @@ void ThreadLocalPtr::StaticMeta::OnThreadExit(void* ptr) {
 ThreadLocalPtr::StaticMeta::StaticMeta()
   : next_instance_id_(0),
     head_(this),
-    pthread_key_(0) {
+    pthread_key_({""}) {
   // if (photon::thread_key_create(&pthread_key_, &OnThreadExit) != 0) {
   //   abort();
   // }

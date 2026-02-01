@@ -7,12 +7,13 @@
 #include <boost/thread/tss.hpp>
 #include <sstream>
 #include "monitoring/iostats_context_imp.h"
+#include "monitoring/perf_level_imp.h"
 #include "rocksdb/env.h"
 
 namespace rocksdb {
 
 #ifdef ROCKSDB_SUPPORT_THREAD_LOCAL
-boost::thread_specific_ptr<IOStatsContext> iostats_context;
+FiberLocal<IOStatsContext> iostats_context;
 #endif
 
 IOStatsContext* get_iostats_context() {

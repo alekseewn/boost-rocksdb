@@ -11,9 +11,10 @@
 #include "monitoring/perf_level_imp.h"
 
 namespace rocksdb {
+  
 
 #ifdef ROCKSDB_SUPPORT_THREAD_LOCAL
-boost::thread_specific_ptr<PerfLevel> perf_level/*(kEnableCount)*/;
+extern FiberLocal<PerfLevel> perf_level(kEnableCount);
 #else
 PerfLevel perf_level = kEnableCount;
 #endif

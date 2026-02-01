@@ -7,6 +7,7 @@
 #include <boost/fiber/fss.hpp>
 #include <boost/thread/tss.hpp>
 #include <memory>
+#include "monitoring/perf_level_imp.h"
 #include "port/likely.h"
 #include "rocksdb/env.h"
 #include "util/mutexlock.h"
@@ -15,7 +16,7 @@ namespace rocksdb {
 
 #ifdef ROCKSDB_USING_THREAD_STATUS
 
-boost::thread_specific_ptr<ThreadStatusData*> ThreadStatusUpdater::thread_status_data_ptr_;
+FiberLocal<ThreadStatusData*> ThreadStatusUpdater::thread_status_data_ptr_;
 #define thread_status_data_ (*thread_status_data_ptr_)
 
 void ThreadStatusUpdater::RegisterThread(ThreadStatus::ThreadType ttype,

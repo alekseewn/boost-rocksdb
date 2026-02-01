@@ -18,7 +18,7 @@ extern PerfContext perf_context;
 extern __thread PerfContext perf_context_;
 #define perf_context (*get_perf_context())
 #else
-extern boost::thread_specific_ptr<PerfContext> perf_context;
+extern FiberLocal<PerfContext> perf_context;
 #endif
 #endif
 
