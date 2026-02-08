@@ -13,7 +13,7 @@
 namespace rocksdb {
 
 #ifdef ROCKSDB_USING_THREAD_STATUS
-FiberLocal<ThreadStatusUpdater*> ThreadStatusUtil::thread_updater_local_cache_ptr_;
+FiberLocal<ThreadStatusUpdater*> ThreadStatusUtil::thread_updater_local_cache_ptr_(nullptr);
 FiberLocal<bool> ThreadStatusUtil::thread_updater_initialized_ptr_(false);
 
 

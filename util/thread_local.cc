@@ -147,7 +147,7 @@ private:
   port::Mutex mutex_;
 #ifdef ROCKSDB_SUPPORT_THREAD_LOCAL
   // Thread local storage
-  static FiberLocal<ThreadData> tls_;
+  static FiberLocal<ThreadData*> tls_;
 #endif
 
   // Used to make thread exit trigger possible if !defined(OS_MACOSX).
@@ -160,7 +160,7 @@ private:
 
 
 #ifdef ROCKSDB_SUPPORT_THREAD_LOCAL
-FiberLocal<ThreadData> ThreadLocalPtr::StaticMeta::tls_;
+FiberLocal<ThreadData*> ThreadLocalPtr::StaticMeta::tls_(nullptr);
 #endif
 
 // Windows doesn't support a per-thread destructor with its
@@ -359,27 +359,29 @@ ThreadData* ThreadLocalPtr::StaticMeta::GetThreadLocal() {
       static_cast<ThreadData*>(pthread_getspecific(Instance()->pthread_key_));
 #endif
 
-  if (UNLIKELY(tls_.get() == nullptr)) {
+  if (UNLIKELY(*tls_ == nullptr)) {
     auto* inst = Instance();
-    tls_.reset(new ThreadData(inst));
+    // auto tmp2 = &tmp;
+    *tls_ = new ThreadData(inst);
+    // tls_.reset(tmp2);
     {
       // Register it in the global chain, needs to be done before thread exit
       // handler registration
       MutexLock l(Mutex());
-      inst->AddThreadData(tls_.get());
+      inst->AddThreadData(*tls_);
     }
     // Even it is not OS_MACOSX, need to register value for pthread_key_ so that
     // its exit handler will be triggered.
-    if (tls_.release() != 0) {
-      {
-        MutexLock l(Mutex());
-        inst->RemoveThreadData(tls_.get());
-      }
-      delete tls_.get();
-      abort();
-    }
+    // if (tls_.release() != 0) {
+    //   {
+    //     MutexLock l(Mutex());
+    //     inst->RemoveThreadData(*tls_);
+    //   }
+    //   delete *tls_;
+    //   abort();
+    // }
   }
-  return tls_.get();
+  return *tls_;
 }
 
 void* ThreadLocalPtr::StaticMeta::Get(uint32_t id) const {

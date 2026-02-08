@@ -16,7 +16,7 @@ namespace rocksdb {
 
 #ifdef ROCKSDB_USING_THREAD_STATUS
 
-FiberLocal<ThreadStatusData*> ThreadStatusUpdater::thread_status_data_ptr_;
+FiberLocal<ThreadStatusData*> ThreadStatusUpdater::thread_status_data_ptr_(nullptr);
 #define thread_status_data_ (*thread_status_data_ptr_)
 
 void ThreadStatusUpdater::RegisterThread(ThreadStatus::ThreadType ttype,

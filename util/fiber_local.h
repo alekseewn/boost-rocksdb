@@ -1,49 +1,41 @@
-#include <boost/thread/tss.hpp>
-#include <utility>
+#include <boost/fiber/fss.hpp>
 
 template<typename T>
 struct FiberLocal {
-    boost::thread_specific_ptr<T> value;
+    mutable boost::fibers::fiber_specific_ptr<T> value;
     T init_value;
 
-    // template<typename... Args>
-    // FiberLocal(Args&&... args) {
-      // init_value = new T(std::forward<Args>(args)...);
-    // }
+    explicit FiberLocal(T init)
+        : init_value(init)
+    {}
 
-    FiberLocal(T init) {
-      init_value = init;
-    }
+    FiberLocal() : init_value{} {}  
 
-    FiberLocal() = default;
-
-    T* get_or_init() {
-      if (value == nullptr) {
-        value.reset(new T(init_value));
-      }
-    }
-
-    T& operator*() {
-        return *value;
-    }
-
-    T* operator->() {
-        return value.get();
-    }
-
-    const T* operator->() const {
-        return value.get();
+    const T& operator*() const {
+        return *get();
     }
 
     void reset(T* new_value) {
-      value.reset(new_value);
+        value.reset(new_value);
     }
 
     T* release() {
-      return value.release();
+        return value.release();
     }
 
+    T& operator*() {
+        return *get();
+    }
+
+    T* operator->() const {
+        return get();
+    }
+
+private:
     T* get() const {
-      return value.get();
+        if (value.get() == nullptr) {
+            value.reset(new T(init_value));
+        }
+        return value.get();
     }
 };

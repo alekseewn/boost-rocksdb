@@ -1031,6 +1031,7 @@ PosixEnv::PosixEnv()
     thread_pools_[pool_id].SetHostEnv(this);
   }
   thread_status_updater_ = CreateThreadStatusUpdater();
+  LOG_INFO("global PosixEnv construct end");
 }
 
 void PosixEnv::Schedule(void (*function)(void* arg1), void* arg, Priority pri,
