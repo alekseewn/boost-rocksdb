@@ -14,6 +14,7 @@
 #include <boost/fiber/mutex.hpp>  
 #include <boost/fiber/context.hpp>
 #include <boost/fiber/condition_variable.hpp>
+#include <boost/fiber/recursive_mutex.hpp>
 #include <boost/thread/thread.hpp>
 /*
 #include <photon/photon.h>
@@ -145,7 +146,7 @@ class RWMutex {
   void AssertHeld() { }
 
  private:
-  boost::fibers::mutex mu_; // the underlying platform mutex
+  boost::fibers::recursive_mutex mu_; // the underlying platform mutex
 
   // No copying allowed
   RWMutex(const RWMutex&);
