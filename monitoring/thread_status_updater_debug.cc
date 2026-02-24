@@ -3,7 +3,7 @@
 //  COPYING file in the root directory) and Apache 2.0 License
 //  (found in the LICENSE.Apache file in the root directory).
 
-#include <mutex>
+#include "port/port.h"
 
 #include "db/column_family.h"
 #include "monitoring/thread_status_updater.h"
@@ -14,7 +14,7 @@ namespace rocksdb {
 #ifdef ROCKSDB_USING_THREAD_STATUS
 void ThreadStatusUpdater::TEST_VerifyColumnFamilyInfoMap(
     const std::vector<ColumnFamilyHandle*>& handles, bool check_exist) {
-  std::unique_lock<std::mutex> lock(thread_list_mutex_);
+  std::unique_lock<boost::fibers::mutex> lock(thread_list_mutex_);
   if (check_exist) {
     assert(cf_info_map_.size() == handles.size());
   }

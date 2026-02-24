@@ -22,12 +22,12 @@ int main() { return 0; }
 #include <bitset>
 #include <chrono>
 #include <climits>
-#include <condition_variable>
+#include "port/port.h"
 #include <limits>
-#include <mutex>
+#include "port/port.h"
 #include <queue>
 #include <random>
-#include <thread>
+#include "port/port.h"
 
 #include "port/port.h"
 #include "rocksdb/cache.h"
@@ -107,7 +107,7 @@ struct Reader {
 
       uint64_t shard;
       {
-        std::lock_guard<std::mutex> guard(queue_mutex_);
+        std::lock_guard<boost::fibers::mutex> guard(queue_mutex_);
         assert(!shards_pending_queue_.empty());
         shard = shards_pending_queue_.front();
         shards_pending_queue_.pop();
@@ -175,7 +175,7 @@ struct Reader {
 
   void onWrite(uint64_t shard) {
     {
-      std::lock_guard<std::mutex> guard(queue_mutex_);
+      std::lock_guard<boost::fibers::mutex> guard(queue_mutex_);
       if (!shards_pending_set_.test(shard)) {
         shards_pending_queue_.push(shard);
         shards_pending_set_.set(shard);
@@ -196,7 +196,7 @@ struct Reader {
   rocksdb::DB* db_;
   rocksdb::port::Thread thread_;
   sem_t sem_;
-  std::mutex queue_mutex_;
+  boost::fibers::mutex queue_mutex_;
   std::bitset<MAX_SHARDS + 1> shards_pending_set_;
   std::queue<uint64_t> shards_pending_queue_;
   std::atomic<bool> done_{false};
@@ -253,7 +253,7 @@ struct Writer {
         state.reader->onWrite(shard);
         ++::stats.written;
       }
-      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      boost::this_fiber::sleep_for(std::chrono::milliseconds(1));
     }
     // fprintf(stderr, "Writer done\n");
   }
@@ -278,7 +278,7 @@ struct StatsThread {
     uint64_t wlast = 0, rlast = 0;
     while (!done_.load()) {
       {
-        std::unique_lock<std::mutex> lock(cvm_);
+        std::unique_lock<boost::fibers::mutex> lock(cvm_);
         cv_.wait_for(lock, std::chrono::seconds(1));
       }
       auto now = std::chrono::steady_clock::now();
@@ -303,7 +303,7 @@ struct StatsThread {
 
   ~StatsThread() {
     {
-      std::lock_guard<std::mutex> guard(cvm_);
+      std::lock_guard<boost::fibers::mutex> guard(cvm_);
       done_.store(true);
     }
     cv_.notify_all();
@@ -312,8 +312,8 @@ struct StatsThread {
 
  private:
   rocksdb::DB* db_;
-  std::mutex cvm_;
-  std::condition_variable cv_;
+  boost::fibers::mutex cvm_;
+  boost::fibers::condition_variable_any cv_;
   rocksdb::port::Thread thread_;
   std::atomic<bool> done_{false};
 };

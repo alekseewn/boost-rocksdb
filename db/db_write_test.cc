@@ -5,7 +5,7 @@
 
 #include <atomic>
 #include <memory>
-#include <thread>
+#include "port/port.h"
 #include <vector>
 #include "db/db_test_util.h"
 #include "db/write_batch_internal.h"
@@ -61,7 +61,7 @@ TEST_P(DBWriteTest, IOErrorOnWALWritePropagateToWriteThreadFollower) {
           leader_count++;
           while (ready_count < kNumThreads) {
             // busy waiting
-            std::this_thread::yield();
+            boost::this_fiber::yield();
           }
         }
       });

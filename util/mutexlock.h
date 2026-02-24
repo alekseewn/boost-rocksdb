@@ -10,8 +10,8 @@
 #pragma once
 #include <assert.h>
 #include <atomic>
-#include <mutex>
-#include <thread>
+#include "port/port.h"
+#include "port/port.h"
 #include "port/port.h"
 
 namespace rocksdb {
@@ -117,7 +117,7 @@ class SpinMutexObsolete {
       }
       port::AsmVolatilePause();
       if (tries > 100) {
-        std::this_thread::yield();
+        boost::this_fiber::yield();
       }
     }
   }
@@ -128,6 +128,6 @@ class SpinMutexObsolete {
   std::atomic<bool> locked_;
 };
 
-using SpinMutex = std::mutex;
+using SpinMutex = boost::fibers::mutex;
 
 }  // namespace rocksdb

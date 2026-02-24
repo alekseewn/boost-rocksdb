@@ -5,7 +5,7 @@
 
 #include "db/write_thread.h"
 #include <chrono>
-#include <thread>
+#include "port/port.h"
 #include "db/column_family.h"
 #include "monitoring/perf_context_imp.h"
 #include "port/port.h"
@@ -42,7 +42,7 @@ uint8_t WriteThread::BlockingAwaitState(Writer* w, uint8_t goal_mask) {
   if ((state & goal_mask) == 0 &&
       w->state.compare_exchange_strong(state, STATE_LOCKED_WAITING)) {
     // we have permission (and an obligation) to use StateMutex
-    std::unique_lock<std::mutex> guard(w->StateMutex());
+    std::unique_lock<boost::fibers::mutex> guard(w->StateMutex());
     w->StateCV().wait(guard, [w] {
       return w->state.load(std::memory_order_relaxed) != STATE_LOCKED_WAITING;
     });
@@ -82,7 +82,7 @@ uint8_t WriteThread::AwaitState(Writer* w, uint8_t goal_mask,
   PERF_TIMER_GUARD(write_thread_wait_nanos);
 
   // If we're only going to end up waiting a short period of time,
-  // it can be a lot more efficient to call std::this_thread::yield()
+  // it can be a lot more efficient to call boost::this_fiber::yield()
   // in a loop than to block in StateMutex().  For reference, on my 4.0
   // SELinux test server with support for syscall auditing enabled, the
   // minimum latency between FUTEX_WAKE to returning from FUTEX_WAIT is
@@ -153,7 +153,7 @@ uint8_t WriteThread::AwaitState(Writer* w, uint8_t goal_mask,
       auto iter_begin = spin_begin;
       while ((iter_begin - spin_begin) <=
              std::chrono::microseconds(max_yield_usec_)) {
-        std::this_thread::yield();
+        boost::this_fiber::yield();
 
         state = w->state.load(std::memory_order_acquire);
         if ((state & goal_mask) != 0) {
@@ -211,7 +211,7 @@ void WriteThread::SetState(Writer* w, uint8_t new_state) {
       !w->state.compare_exchange_strong(state, new_state)) {
     assert(state == STATE_LOCKED_WAITING);
 
-    std::lock_guard<std::mutex> guard(w->StateMutex());
+    std::lock_guard<boost::fibers::mutex> guard(w->StateMutex());
     assert(w->state.load(std::memory_order_relaxed) != new_state);
     w->state.store(new_state, std::memory_order_relaxed);
     w->StateCV().notify_one();
@@ -577,7 +577,7 @@ bool WriteThread::CompleteParallelMemTableWriter(Writer* w) {
 
   auto* write_group = w->write_group;
   if (!w->status.ok()) {
-    std::lock_guard<std::mutex> guard(write_group->leader->StateMutex());
+    std::lock_guard<boost::fibers::mutex> guard(write_group->leader->StateMutex());
     write_group->status = w->status;
   }
 

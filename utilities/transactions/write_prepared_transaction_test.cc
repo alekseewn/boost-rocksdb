@@ -16,7 +16,7 @@
 #include <atomic>
 #include <functional>
 #include <string>
-#include <thread>
+#include "port/port.h"
 
 #include "db/db_impl.h"
 #include "db/dbformat.h"
@@ -162,12 +162,12 @@ TEST(PreparedHeap, Concurrent) {
       bool skip_push = rnd.OneIn(5);
       t[i] = rocksdb::port::Thread([&heap, &prepared_mutex, skip_push, i]() {
         auto seq = i;
-        std::this_thread::yield();
+        boost::this_fiber::yield();
         if (!skip_push) {
           WriteLock wl(&prepared_mutex);
           heap.push(seq);
         }
-        std::this_thread::yield();
+        boost::this_fiber::yield();
         {
           WriteLock wl(&prepared_mutex);
           heap.erase(seq);
@@ -1190,7 +1190,7 @@ TEST_P(WritePreparedTransactionTest, MaxCatchupWithNewSnapshot) {
 
   rocksdb::port::Thread t2([&]() {
     while (wp_db->max_evicted_seq_ == 0) {  // wait for insert thread
-      std::this_thread::yield();
+      boost::this_fiber::yield();
     }
     for (int i = 0; i < 10; i++) {
       auto snap = db->GetSnapshot();
@@ -1374,13 +1374,13 @@ TEST_P(SeqAdvanceConcurrentTest, SeqAdvanceConcurrentTest) {
           if (linked == 1) {
             // Wait until the others are linked too.
             while (linked < first_group_size) {
-              std::this_thread::yield();
+              boost::this_fiber::yield();
             }
           } else if (linked == 1 + first_group_size) {
             // Make the 2nd batch of the rest of writes plus any followup
             // commits from the first batch
             while (linked < txn_cnt + commit_writes) {
-              std::this_thread::yield();
+              boost::this_fiber::yield();
             }
           }
           // Then we will have one or more batches consisting of follow-up
@@ -1413,16 +1413,16 @@ TEST_P(SeqAdvanceConcurrentTest, SeqAdvanceConcurrentTest) {
       }
       // wait to be linked
       while (linked.load() <= bi) {
-        std::this_thread::yield();
+        boost::this_fiber::yield();
       }
       // after a queue of size first_group_size
       if (bi + 1 == first_group_size) {
         while (!batch_formed) {
-          std::this_thread::yield();
+          boost::this_fiber::yield();
         }
         // to make it more deterministic, wait until the commits are linked
         while (linked.load() <= bi + expected_commits) {
-          std::this_thread::yield();
+          boost::this_fiber::yield();
         }
       }
     }
@@ -3063,7 +3063,7 @@ TEST_P(WritePreparedTransactionTest, CommitOfDelayedPrepared) {
           }
           ASSERT_OK(txn->Prepare());
           // Let an eviction to kick in
-          std::this_thread::yield();
+          boost::this_fiber::yield();
 
           exp_prepare.store(txn->GetId());
           ASSERT_OK(txn->Commit());

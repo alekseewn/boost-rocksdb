@@ -14,9 +14,9 @@
 #include <inttypes.h>
 
 #include <algorithm>
-#include <condition_variable>
+#include "port/port.h"
 #include <functional>
-#include <mutex>
+#include "port/port.h"
 #include <string>
 #include <vector>
 
@@ -98,7 +98,7 @@ struct LockMap {
 };
 
 void DeadlockInfoBuffer::AddNewPath(DeadlockPath path) {
-  std::lock_guard<std::mutex> lock(paths_buffer_mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(paths_buffer_mutex_);
 
   if (paths_buffer_.empty()) {
     return;
@@ -109,7 +109,7 @@ void DeadlockInfoBuffer::AddNewPath(DeadlockPath path) {
 }
 
 void DeadlockInfoBuffer::Resize(uint32_t target_size) {
-  std::lock_guard<std::mutex> lock(paths_buffer_mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(paths_buffer_mutex_);
 
   paths_buffer_ = Normalize();
 
@@ -146,7 +146,7 @@ std::vector<DeadlockPath> DeadlockInfoBuffer::Normalize() {
 }
 
 std::vector<DeadlockPath> DeadlockInfoBuffer::PrepareBuffer() {
-  std::lock_guard<std::mutex> lock(paths_buffer_mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(paths_buffer_mutex_);
 
   // Reversing the normalized vector returns the latest deadlocks first
   auto working = Normalize();
@@ -421,7 +421,7 @@ Status TransactionLockMgr::AcquireWithTimeout(
 void TransactionLockMgr::DecrementWaiters(
     const PessimisticTransaction* txn,
     const autovector<TransactionID>& wait_ids) {
-  std::lock_guard<std::mutex> lock(wait_txn_map_mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(wait_txn_map_mutex_);
   DecrementWaitersImpl(txn, wait_ids);
 }
 
@@ -447,7 +447,7 @@ bool TransactionLockMgr::IncrementWaiters(
   auto id = txn->GetID();
   std::vector<int> queue_parents(static_cast<size_t>(txn->GetDeadlockDetectDepth()));
   std::vector<TransactionID> queue_values(static_cast<size_t>(txn->GetDeadlockDetectDepth()));
-  std::lock_guard<std::mutex> lock(wait_txn_map_mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(wait_txn_map_mutex_);
   assert(!wait_txn_map_.Contains(id));
 
   wait_txn_map_.Insert(id, {wait_ids, cf_id, key, exclusive});

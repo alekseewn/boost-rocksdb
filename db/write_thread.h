@@ -8,9 +8,10 @@
 #include <assert.h>
 #include <stdint.h>
 #include <atomic>
+#include <boost/fiber/condition_variable.hpp>
 #include <chrono>
-#include <condition_variable>
-#include <mutex>
+#include "port/port.h"
+#include "port/port.h"
 #include <type_traits>
 #include <vector>
 
@@ -130,8 +131,8 @@ class WriteThread {
     Status status;
     Status callback_status;   // status returned by callback->Callback()
 
-    std::aligned_storage<sizeof(std::mutex)>::type state_mutex_bytes;
-    std::aligned_storage<sizeof(std::condition_variable)>::type state_cv_bytes;
+    std::aligned_storage<sizeof(boost::fibers::mutex)>::type state_mutex_bytes;
+    std::aligned_storage<sizeof(boost::fibers::condition_variable_any)>::type state_cv_bytes;
     Writer* link_older;  // read/write only before linking, or as leader
     Writer* link_newer;  // lazy, read/write only before linking, or as leader
 
@@ -177,7 +178,7 @@ class WriteThread {
     ~Writer() {
       if (made_waitable) {
         StateMutex().~mutex();
-        StateCV().~condition_variable();
+        StateCV().~condition_variable_any();
       }
     }
 
@@ -194,8 +195,8 @@ class WriteThread {
         // transitions, because we can't atomically create the mutex and
         // link into the list.
         made_waitable = true;
-        new (&state_mutex_bytes) std::mutex;
-        new (&state_cv_bytes) std::condition_variable;
+        new (&state_mutex_bytes) boost::fibers::mutex;
+        new (&state_cv_bytes) boost::fibers::condition_variable_any;
       }
     }
 
@@ -233,14 +234,14 @@ class WriteThread {
 
     // No other mutexes may be acquired while holding StateMutex(), it is
     // always last in the order
-    std::mutex& StateMutex() {
+    boost::fibers::mutex& StateMutex() {
       assert(made_waitable);
-      return *static_cast<std::mutex*>(static_cast<void*>(&state_mutex_bytes));
+      return *static_cast<boost::fibers::mutex*>(static_cast<void*>(&state_mutex_bytes));
     }
 
-    std::condition_variable& StateCV() {
+    boost::fibers::condition_variable_any& StateCV() {
       assert(made_waitable);
-      return *static_cast<std::condition_variable*>(
+      return *static_cast<boost::fibers::condition_variable_any*>(
                  static_cast<void*>(&state_cv_bytes));
     }
   };
@@ -389,7 +390,7 @@ class WriteThread {
 
   // Blocks until w->state & goal_mask, returning the state value
   // that satisfied the predicate.  Uses ctx to adaptively use
-  // std::this_thread::yield() to avoid mutex overheads.  ctx should be
+  // boost::this_fiber::yield() to avoid mutex overheads.  ctx should be
   // a context-dependent static.
   uint8_t AwaitState(Writer* w, uint8_t goal_mask, AdaptationContext* ctx);
 

@@ -10,7 +10,7 @@
 namespace rocksdb {
 void LogsWithPrepTracker::MarkLogAsHavingPrepSectionFlushed(uint64_t log) {
   assert(log != 0);
-  std::lock_guard<std::mutex> lock(prepared_section_completed_mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(prepared_section_completed_mutex_);
   auto it = prepared_section_completed_.find(log);
   if (UNLIKELY(it == prepared_section_completed_.end())) {
     prepared_section_completed_[log] = 1;
@@ -21,7 +21,7 @@ void LogsWithPrepTracker::MarkLogAsHavingPrepSectionFlushed(uint64_t log) {
 
 void LogsWithPrepTracker::MarkLogAsContainingPrepSection(uint64_t log) {
   assert(log != 0);
-  std::lock_guard<std::mutex> lock(logs_with_prep_mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(logs_with_prep_mutex_);
 
   auto rit = logs_with_prep_.rbegin();
   bool updated = false;
@@ -41,13 +41,13 @@ void LogsWithPrepTracker::MarkLogAsContainingPrepSection(uint64_t log) {
 }
 
 uint64_t LogsWithPrepTracker::FindMinLogContainingOutstandingPrep() {
-  std::lock_guard<std::mutex> lock(logs_with_prep_mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(logs_with_prep_mutex_);
   auto it = logs_with_prep_.begin();
   // start with the smallest log
   for (; it != logs_with_prep_.end();) {
     auto min_log = it->log;
     {
-      std::lock_guard<std::mutex> lock2(prepared_section_completed_mutex_);
+      std::lock_guard<boost::fibers::mutex> lock2(prepared_section_completed_mutex_);
       auto completed_it = prepared_section_completed_.find(min_log);
       if (completed_it == prepared_section_completed_.end() ||
           completed_it->second < it->cnt) {

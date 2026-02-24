@@ -10,6 +10,7 @@
 // See port_example.h for documentation for the following types/functions.
 
 #pragma once
+#include <boost/context/fiber_fcontext.hpp>
 #include <boost/fiber/fiber.hpp>
 #include <boost/fiber/mutex.hpp>  
 #include <boost/fiber/context.hpp>
@@ -124,7 +125,7 @@ class Mutex {
 
  private:
   friend class CondVar;
-  boost::fibers::mutex mu_;
+  boost::fibers::recursive_mutex mu_;
 #ifndef NDEBUG
   bool locked_;
 #endif
@@ -167,7 +168,7 @@ class CondVar {
   Mutex* mu_;
 };
 
-using Thread = std::thread;
+using Thread = boost::fibers::fiber;
 
 static inline void AsmVolatilePause() {
 #if defined(__i386__) || defined(__x86_64__)

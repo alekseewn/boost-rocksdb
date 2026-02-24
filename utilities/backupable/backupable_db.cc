@@ -35,10 +35,10 @@
 #include <future>
 #include <limits>
 #include <map>
-#include <mutex>
+#include "port/port.h"
 #include <sstream>
 #include <string>
-#include <thread>
+#include "port/port.h"
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -457,7 +457,7 @@ class BackupEngineImpl : public BackupEngine {
   };
 
   bool initialized_;
-  std::mutex byte_report_mutex_;
+  boost::fibers::mutex byte_report_mutex_;
   channel<CopyOrCreateWorkItem> files_to_copy_or_create_;
   std::vector<port::Thread> threads_;
 
@@ -1289,7 +1289,7 @@ Status BackupEngineImpl::CopyOrCreateFile(
     }
     if (processed_buffer_size > options_.callback_trigger_interval_size) {
       processed_buffer_size -= options_.callback_trigger_interval_size;
-      std::lock_guard<std::mutex> lock(byte_report_mutex_);
+      std::lock_guard<boost::fibers::mutex> lock(byte_report_mutex_);
       progress_callback();
     }
   } while (s.ok() && contents.empty() && data.size() > 0 && size_limit > 0);

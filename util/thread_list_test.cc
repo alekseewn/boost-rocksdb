@@ -3,8 +3,8 @@
 //  COPYING file in the root directory) and Apache 2.0 License
 //  (found in the LICENSE.Apache file in the root directory).
 
-#include <mutex>
-#include <condition_variable>
+#include "port/port.h"
+#include "port/port.h"
 
 #include "monitoring/thread_status_updater.h"
 #include "rocksdb/db.h"
@@ -36,7 +36,7 @@ class SimulatedBackgroundTask {
   }
 
   void Run() {
-    std::unique_lock<std::mutex> l(mutex_);
+    std::unique_lock<boost::fibers::mutex> l(mutex_);
     running_count_++;
     Env::Default()->GetThreadStatusUpdater()->SetColumnFamilyInfoKey(cf_key_);
     Env::Default()->GetThreadStatusUpdater()->SetThreadOperation(
@@ -53,7 +53,7 @@ class SimulatedBackgroundTask {
   }
 
   void FinishAllTasks() {
-    std::unique_lock<std::mutex> l(mutex_);
+    std::unique_lock<boost::fibers::mutex> l(mutex_);
     should_run_ = false;
     bg_cv_.notify_all();
   }
@@ -65,7 +65,7 @@ class SimulatedBackgroundTask {
   }
 
   void WaitUntilDone() {
-    std::unique_lock<std::mutex> l(mutex_);
+    std::unique_lock<boost::fibers::mutex> l(mutex_);
     while (running_count_ > 0) {
       bg_cv_.wait(l);
     }
@@ -82,8 +82,8 @@ class SimulatedBackgroundTask {
   const std::string cf_name_;
   const ThreadStatus::OperationType operation_type_;
   const ThreadStatus::StateType state_type_;
-  std::mutex mutex_;
-  std::condition_variable bg_cv_;
+  boost::fibers::mutex mutex_;
+  boost::fibers::condition_variable_any bg_cv_;
   bool should_run_;
   std::atomic<int> running_count_;
 };

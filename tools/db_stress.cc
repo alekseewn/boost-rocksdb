@@ -41,7 +41,7 @@ int main() {
 #include <chrono>
 #include <exception>
 #include <queue>
-#include <thread>
+#include "port/port.h"
 
 #include "db/db_impl.h"
 #include "db/version_set.h"
@@ -1264,7 +1264,7 @@ class DbStressListener : public EventListener {
     assert(IsValidColumnFamilyName(info.cf_name));
     VerifyFilePath(info.file_path);
     // pretending doing some work here
-    std::this_thread::sleep_for(
+    boost::this_fiber::sleep_for(
         std::chrono::microseconds(Random::GetTLSInstance()->Uniform(5000)));
   }
 
@@ -1279,7 +1279,7 @@ class DbStressListener : public EventListener {
       VerifyFilePath(file_path);
     }
     // pretending doing some work here
-    std::this_thread::sleep_for(
+    boost::this_fiber::sleep_for(
         std::chrono::microseconds(Random::GetTLSInstance()->Uniform(5000)));
   }
 

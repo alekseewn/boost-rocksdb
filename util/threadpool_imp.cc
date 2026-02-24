@@ -24,10 +24,10 @@
 #include <stdlib.h>
 #include <algorithm>
 #include <atomic>
-#include <condition_variable>
-#include <mutex>
+#include "port/port.h"
+#include "port/port.h"
 #include <sstream>
-#include <thread>
+#include "port/port.h"
 #include <vector>
 
 namespace rocksdb {
@@ -120,8 +120,8 @@ private:
   using BGQueue = std::deque<BGItem>;
   BGQueue       queue_;
 
-  std::mutex               mu_;
-  std::condition_variable  bgsignal_;
+  boost::fibers::mutex               mu_;
+  boost::fibers::condition_variable_any  bgsignal_;
   std::vector<port::Thread> bgthreads_;
 };
 
@@ -148,7 +148,7 @@ ThreadPoolImpl::Impl::~Impl() { assert(bgthreads_.size() == 0U); }
 
 void ThreadPoolImpl::Impl::JoinThreads(bool wait_for_jobs_to_complete) {
 
-  std::unique_lock<std::mutex> lock(mu_);
+  std::unique_lock<boost::fibers::mutex> lock(mu_);
   assert(!exit_all_threads_);
 
   wait_for_jobs_to_complete_ = wait_for_jobs_to_complete;
@@ -173,13 +173,13 @@ void ThreadPoolImpl::Impl::JoinThreads(bool wait_for_jobs_to_complete) {
 
 inline
 void ThreadPoolImpl::Impl::LowerIOPriority() {
-  std::lock_guard<std::mutex> lock(mu_);
+  std::lock_guard<boost::fibers::mutex> lock(mu_);
   low_io_priority_ = true;
 }
 
 inline
 void ThreadPoolImpl::Impl::LowerCPUPriority() {
-  std::lock_guard<std::mutex> lock(mu_);
+  std::lock_guard<boost::fibers::mutex> lock(mu_);
   low_cpu_priority_ = true;
 }
 
@@ -189,7 +189,7 @@ void ThreadPoolImpl::Impl::BGThread(size_t thread_id) {
 
   while (true) {
     // Wait until there is an item that is ready to run
-    std::unique_lock<std::mutex> lock(mu_);
+    std::unique_lock<boost::fibers::mutex> lock(mu_);
     // Stop waiting if the thread needs to do work or needs to terminate.
     while (!exit_all_threads_ && !IsLastExcessiveThread(thread_id) &&
            (queue_.empty() || IsExcessiveThread(thread_id))) {
@@ -291,7 +291,7 @@ void* ThreadPoolImpl::Impl::BGThreadWrapper(void* arg) {
 
 void ThreadPoolImpl::Impl::SetBackgroundThreadsInternal(int num,
   bool allow_reduce) {
-  std::unique_lock<std::mutex> lock(mu_);
+  std::unique_lock<boost::fibers::mutex> lock(mu_);
   if (exit_all_threads_) {
     lock.unlock();
     return;
@@ -305,7 +305,7 @@ void ThreadPoolImpl::Impl::SetBackgroundThreadsInternal(int num,
 }
 
 int ThreadPoolImpl::Impl::GetBackgroundThreads() {
-  std::unique_lock<std::mutex> lock(mu_);
+  std::unique_lock<boost::fibers::mutex> lock(mu_);
   return total_threads_limit_;
 }
 
@@ -323,7 +323,7 @@ void ThreadPoolImpl::Impl::StartBGThreads() {
 void ThreadPoolImpl::Impl::Submit(std::function<void()>&& schedule,
   std::function<void()>&& unschedule, void* tag) {
 
-  std::lock_guard<std::mutex> lock(mu_);
+  std::lock_guard<boost::fibers::mutex> lock(mu_);
 
   if (exit_all_threads_) {
     return;
@@ -357,7 +357,7 @@ int ThreadPoolImpl::Impl::UnSchedule(void* arg) {
 
   std::vector<std::function<void()>> candidates;
   {
-    std::lock_guard<std::mutex> lock(mu_);
+    std::lock_guard<boost::fibers::mutex> lock(mu_);
 
     // Remove from priority queue
     BGQueue::iterator it = queue_.begin();

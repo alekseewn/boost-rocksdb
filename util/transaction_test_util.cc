@@ -15,7 +15,7 @@
 #include <numeric>
 #include <random>
 #include <string>
-#include <thread>
+#include "port/port.h"
 
 #include "rocksdb/db.h"
 #include "rocksdb/utilities/optimistic_transaction_db.h"
@@ -55,10 +55,10 @@ bool RandomTransactionInserter::TransactionDBInsert(
     TransactionDB* db, const TransactionOptions& txn_options) {
   txn_ = db->BeginTransaction(write_options_, txn_options, txn_);
 
-  std::hash<std::thread::id> hasher;
+  std::hash<boost::fibers::context::id> hasher;
   char name[64];
   snprintf(name, 64, "txn%" ROCKSDB_PRIszt "-%" PRIu64,
-           hasher(std::this_thread::get_id()), txn_id_++);
+           hasher(boost::fibers::context::id()), txn_id_++);
   assert(strlen(name) < 64 - 1);
   assert(txn_->SetName(name).ok());
 

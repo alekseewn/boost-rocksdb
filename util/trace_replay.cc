@@ -7,7 +7,7 @@
 
 #include <chrono>
 #include <sstream>
-#include <thread>
+#include "port/port.h"
 #include "db/db_impl.h"
 #include "rocksdb/slice.h"
 #include "rocksdb/write_batch.h"
@@ -181,7 +181,7 @@ Status Replayer::Replay() {
       break;
     }
 
-    std::this_thread::sleep_until(
+    boost::this_fiber::sleep_until(
         replay_epoch + std::chrono::microseconds(trace.ts - header.ts));
     if (trace.type == kTraceWrite) {
       WriteBatch batch(trace.payload);

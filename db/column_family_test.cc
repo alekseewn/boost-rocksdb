@@ -10,7 +10,7 @@
 #include <algorithm>
 #include <vector>
 #include <string>
-#include <thread>
+#include "port/port.h"
 
 #include "db/db_impl.h"
 #include "db/db_test_util.h"
@@ -2443,11 +2443,11 @@ TEST_P(ColumnFamilyTest, CreateAndDropRace) {
   db_options_.create_if_missing = true;
   db_options_.create_missing_column_families = true;
 
-  auto main_thread_id = std::this_thread::get_id();
+  auto main_thread_id = boost::fibers::context::id();
 
   rocksdb::SyncPoint::GetInstance()->SetCallBack("PersistRocksDBOptions:start",
                                                  [&](void* /*arg*/) {
-    auto current_thread_id = std::this_thread::get_id();
+    auto current_thread_id = boost::fibers::context::id();
     // If it's the main thread hitting this sync-point, then it
     // will be blocked until some other thread update the test_stage.
     if (main_thread_id == current_thread_id) {

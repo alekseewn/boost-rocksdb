@@ -3,7 +3,7 @@
 
 #include "rocksdb/utilities/env_librados.h"
 #include "util/random.h"
-#include <mutex>
+#include "port/port.h"
 #include <cstdlib>
 
 namespace rocksdb {
@@ -265,7 +265,7 @@ class LibradosWritableFile : public WritableFile {
   std::string _hint;
   const EnvLibrados * const _env;
 
-  std::mutex _mutex;                 // used to protect modification of all following variables
+  boost::fibers::mutex _mutex;                 // used to protect modification of all following variables
   librados::bufferlist _buffer;      // write buffer
   uint64_t _buffer_size;             // write buffer size
   uint64_t _file_size;               // this file size doesn't include buffer size
@@ -323,7 +323,7 @@ public:
     LOG_DEBUG("[IN] %i | %s\n", (int)data.size(), data.data());
     int r = 0;
 
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<boost::fibers::mutex> lock(_mutex);
     _buffer.append(data.data(), data.size());
     _buffer_size += data.size();
 
@@ -357,7 +357,7 @@ public:
     LOG_DEBUG("[IN]%lld|%lld|%lld\n", (long long)size, (long long)_file_size, (long long)_buffer_size);
     int r = 0;
 
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<boost::fibers::mutex> lock(_mutex);
     if (_file_size > size) {
       r = _io_ctx->trunc(_fid, size);
 
@@ -400,7 +400,7 @@ public:
     librados::AioCompletion *write_completion = librados::Rados::aio_create_completion();
     int r = 0;
 
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<boost::fibers::mutex> lock(_mutex);
     r = _io_ctx->aio_append(_fid, write_completion, _buffer, _buffer_size);
 
     if (0 == r) {
@@ -422,7 +422,7 @@ public:
   Status Sync() { // sync data
     int r = 0;
 
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<boost::fibers::mutex> lock(_mutex);
     if (_buffer_size > 0) {
       r = _SyncLocked();
     }
@@ -457,7 +457,7 @@ public:
   uint64_t GetFileSize() {
     LOG_DEBUG("%lld|%lld\n", (long long)_buffer_size, (long long)_file_size);
 
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<boost::fibers::mutex> lock(_mutex);
     int file_size = _file_size + _buffer_size;
 
     return file_size;

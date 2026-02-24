@@ -8,7 +8,7 @@
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
 #include "rocksdb/write_buffer_manager.h"
-#include <mutex>
+#include "port/port.h"
 #include "util/coding.h"
 
 namespace rocksdb {
@@ -22,7 +22,7 @@ const size_t kCacheKeyPrefix = kMaxVarint64Length * 4 + 1;
 
 struct WriteBufferManager::CacheRep {
   std::shared_ptr<Cache> cache_;
-  std::mutex cache_mutex_;
+  boost::fibers::mutex cache_mutex_;
   std::atomic<size_t> cache_allocated_size_;
   // The non-prefix part will be updated according to the ID to use.
   char cache_key_[kCacheKeyPrefix + kMaxVarint64Length];
@@ -81,7 +81,7 @@ void WriteBufferManager::ReserveMemWithCache(size_t mem) {
   assert(cache_rep_ != nullptr);
   // Use a mutex to protect various data structures. Can be optimized to a
   // lock-free solution if it ends up with a performance bottleneck.
-  std::lock_guard<std::mutex> lock(cache_rep_->cache_mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(cache_rep_->cache_mutex_);
 
   size_t new_mem_used = memory_used_.load(std::memory_order_relaxed) + mem;
   memory_used_.store(new_mem_used, std::memory_order_relaxed);
@@ -104,7 +104,7 @@ void WriteBufferManager::FreeMemWithCache(size_t mem) {
   assert(cache_rep_ != nullptr);
   // Use a mutex to protect various data structures. Can be optimized to a
   // lock-free solution if it ends up with a performance bottleneck.
-  std::lock_guard<std::mutex> lock(cache_rep_->cache_mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(cache_rep_->cache_mutex_);
   size_t new_mem_used = memory_used_.load(std::memory_order_relaxed) - mem;
   memory_used_.store(new_mem_used, std::memory_order_relaxed);
   // Gradually shrink memory costed in the block cache if the actual

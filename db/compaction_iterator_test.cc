@@ -5,6 +5,7 @@
 
 #include "db/compaction_iterator.h"
 
+#include <boost/fiber/operations.hpp>
 #include <string>
 #include <vector>
 
@@ -47,7 +48,7 @@ class StallingFilter : public CompactionFilter {
     int k = std::atoi(key.ToString().c_str());
     last_seen.store(k);
     while (k >= stall_at.load()) {
-      std::this_thread::yield();
+      boost::this_fiber::yield();
     }
     return Decision::kRemove;
   }
@@ -61,7 +62,7 @@ class StallingFilter : public CompactionFilter {
   void WaitForStall(int k, bool exact = true) {
     stall_at.store(k);
     while (last_seen.load() < k) {
-      std::this_thread::yield();
+      boost::this_fiber::yield();
     }
     if (exact) {
       EXPECT_EQ(k, last_seen.load());

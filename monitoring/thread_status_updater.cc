@@ -25,7 +25,7 @@ void ThreadStatusUpdater::RegisterThread(ThreadStatus::ThreadType ttype,
     thread_status_data_ = new ThreadStatusData();
     thread_status_data_->thread_type = ttype;
     thread_status_data_->thread_id = thread_id;
-    std::lock_guard<std::mutex> lck(thread_list_mutex_);
+    std::lock_guard<boost::fibers::mutex> lck(thread_list_mutex_);
     thread_data_set_.insert(thread_status_data_);
   }
 
@@ -34,7 +34,7 @@ void ThreadStatusUpdater::RegisterThread(ThreadStatus::ThreadType ttype,
 
 void ThreadStatusUpdater::UnregisterThread() {
   if (thread_status_data_ != nullptr) {
-    std::lock_guard<std::mutex> lck(thread_list_mutex_);
+    std::lock_guard<boost::fibers::mutex> lck(thread_list_mutex_);
     thread_data_set_.erase(thread_status_data_);
     delete thread_status_data_;
     thread_status_data_ = nullptr;
@@ -165,7 +165,7 @@ Status ThreadStatusUpdater::GetThreadList(
   std::vector<std::shared_ptr<ThreadStatusData>> valid_list;
   uint64_t now_micros = Env::Default()->NowMicros();
 
-  std::lock_guard<std::mutex> lck(thread_list_mutex_);
+  std::lock_guard<boost::fibers::mutex> lck(thread_list_mutex_);
   for (auto* thread_data : thread_data_set_) {
     assert(thread_data);
     auto thread_id = thread_data->thread_id.load(std::memory_order_relaxed);
@@ -225,7 +225,7 @@ void ThreadStatusUpdater::NewColumnFamilyInfo(const void* db_key,
                                               const std::string& cf_name) {
   // Acquiring same lock as GetThreadList() to guarantee
   // a consistent view of global column family table (cf_info_map).
-  std::lock_guard<std::mutex> lck(thread_list_mutex_);
+  std::lock_guard<boost::fibers::mutex> lck(thread_list_mutex_);
 
   cf_info_map_.emplace(std::piecewise_construct, std::make_tuple(cf_key),
                        std::make_tuple(db_key, db_name, cf_name));
@@ -235,7 +235,7 @@ void ThreadStatusUpdater::NewColumnFamilyInfo(const void* db_key,
 void ThreadStatusUpdater::EraseColumnFamilyInfo(const void* cf_key) {
   // Acquiring same lock as GetThreadList() to guarantee
   // a consistent view of global column family table (cf_info_map).
-  std::lock_guard<std::mutex> lck(thread_list_mutex_);
+  std::lock_guard<boost::fibers::mutex> lck(thread_list_mutex_);
 
   auto cf_pair = cf_info_map_.find(cf_key);
   if (cf_pair != cf_info_map_.end()) {
@@ -255,7 +255,7 @@ void ThreadStatusUpdater::EraseColumnFamilyInfo(const void* cf_key) {
 void ThreadStatusUpdater::EraseDatabaseInfo(const void* db_key) {
   // Acquiring same lock as GetThreadList() to guarantee
   // a consistent view of global column family table (cf_info_map).
-  std::lock_guard<std::mutex> lck(thread_list_mutex_);
+  std::lock_guard<boost::fibers::mutex> lck(thread_list_mutex_);
   auto db_pair = db_key_map_.find(db_key);
   if (UNLIKELY(db_pair == db_key_map_.end())) {
     // In some occasional cases such as DB::Open fails, we won't

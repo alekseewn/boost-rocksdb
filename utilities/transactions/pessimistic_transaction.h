@@ -9,7 +9,7 @@
 
 #include <algorithm>
 #include <atomic>
-#include <mutex>
+#include "port/port.h"
 #include <stack>
 #include <string>
 #include <unordered_map>
@@ -68,7 +68,7 @@ class PessimisticTransaction : public TransactionBaseImpl {
 
   std::vector<TransactionID> GetWaitingTxns(uint32_t* column_family_id,
                                             std::string* key) const override {
-    std::lock_guard<std::mutex> lock(wait_mutex_);
+    std::lock_guard<boost::fibers::mutex> lock(wait_mutex_);
     std::vector<TransactionID> ids(waiting_txn_ids_.size());
     if (key) *key = waiting_key_ ? *waiting_key_ : "";
     if (column_family_id) *column_family_id = waiting_cf_id_;
@@ -78,14 +78,14 @@ class PessimisticTransaction : public TransactionBaseImpl {
 
   void SetWaitingTxn(autovector<TransactionID> ids, uint32_t column_family_id,
                      const std::string* key) {
-    std::lock_guard<std::mutex> lock(wait_mutex_);
+    std::lock_guard<boost::fibers::mutex> lock(wait_mutex_);
     waiting_txn_ids_ = ids;
     waiting_cf_id_ = column_family_id;
     waiting_key_ = key;
   }
 
   void ClearWaitingTxn() {
-    std::lock_guard<std::mutex> lock(wait_mutex_);
+    std::lock_guard<boost::fibers::mutex> lock(wait_mutex_);
     waiting_txn_ids_.clear();
     waiting_cf_id_ = 0;
     waiting_key_ = nullptr;
@@ -173,7 +173,7 @@ class PessimisticTransaction : public TransactionBaseImpl {
   const std::string* waiting_key_;
 
   // Mutex protecting waiting_txn_ids_, waiting_cf_id_ and waiting_key_.
-  mutable std::mutex wait_mutex_;
+  mutable boost::fibers::mutex wait_mutex_;
 
   // Timeout in microseconds when locking a key or -1 if there is no timeout.
   int64_t lock_timeout_;

@@ -6,7 +6,7 @@
 #include "util/jemalloc_nodump_allocator.h"
 
 #include <string>
-#include <thread>
+#include "port/port.h"
 
 #include "port/likely.h"
 #include "port/port.h"

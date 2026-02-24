@@ -10,11 +10,12 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <boost/fiber/context.hpp>
+#include <boost/fiber/fiber.hpp>
 #include <boost/thread/detail/thread.hpp>
 #include <cstdint>
 #include <functional>
 #include <string>
-#include <thread>
+#include "port/port.h"
 #if defined(OS_LINUX)
 #include <linux/fs.h>
 #endif
@@ -130,6 +131,7 @@ class PosixEnv : public Env {
 
   ~PosixEnv() override {
     LOG_INFO("global BOOSTEnv destruct: Join thread pools");
+    return;
     for (auto& tid : threads_to_join_) {
       tid.join();
     }
@@ -849,7 +851,7 @@ class PosixEnv : public Env {
     return 0;
   }
 
-  void SleepForMicroseconds(int micros) override { std::this_thread::sleep_for(std::chrono::microseconds(micros)); }
+  void SleepForMicroseconds(int micros) override { boost::this_fiber::sleep_for(std::chrono::microseconds(micros)); }
 
   Status GetHostName(char* name, uint64_t len) override {
     int ret = gethostname(name, static_cast<size_t>(len));
@@ -1010,8 +1012,8 @@ class PosixEnv : public Env {
   size_t page_size_;
 
   std::vector<ThreadPoolImpl> thread_pools_;
-  std::mutex mu_;
-  std::vector<std::thread> threads_to_join_;
+  boost::fibers::mutex mu_;
+  std::vector<boost::fibers::fiber> threads_to_join_;
   // If true, allow non owner read access for db files. Otherwise, non-owner
   //  has no access to db files.
   bool allow_non_owner_access_;
@@ -1065,8 +1067,8 @@ void PosixEnv::StartThread(void (*function)(void* arg), void* arg) {
   StartThreadState* state = new StartThreadState;
   state->user_function = function;
   state->arg = arg;
-  std::lock_guard<std::mutex> lock(mu_);
-  threads_to_join_.emplace_back(std::thread(&StartThreadWrapper, state));
+  std::lock_guard<boost::fibers::mutex> lock(mu_);
+  threads_to_join_.emplace_back(boost::fibers::fiber(&StartThreadWrapper, state));
 }
 
 void PosixEnv::WaitForJoin() {

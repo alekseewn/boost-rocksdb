@@ -15,7 +15,7 @@
 
 #include <stdexcept>
 #include <system_error>
-#include <thread>
+#include "port/port.h"
 
 namespace rocksdb {
 namespace port {
@@ -70,7 +70,7 @@ WindowsThread::WindowsThread() :
 WindowsThread::~WindowsThread() {
   // Must be joined or detached
   // before destruction.
-  // This is the same as std::thread
+  // This is the same as photon_std::thread
   if (data_) {
     if (joinable()) {
       assert(false);

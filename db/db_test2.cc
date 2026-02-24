@@ -7,6 +7,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 #include <atomic>
+#include <boost/fiber/fiber.hpp>
 #include <cstdlib>
 #include <functional>
 
@@ -3622,7 +3623,7 @@ TEST_F(DBTest2, MultiDBParallelOpenTest) {
   }
 
   // Verify empty DBs can be created in parallel
-  std::vector<std::thread> open_threads;
+  std::vector<boost::fibers::fiber> open_threads;
   std::vector<DB*> dbs{static_cast<unsigned int>(kNumDbs), nullptr};
   options.create_if_missing = true;
   for (int i = 0; i < kNumDbs; ++i) {

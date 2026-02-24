@@ -13,7 +13,7 @@
 #include <boost/fiber/condition_variable.hpp>
 #include <boost/fiber/mutex.hpp>
 #include <chrono>
-#include <mutex>
+#include "port/port.h"
 #if defined(__i386__) || defined(__x86_64__)
 #include <cpuid.h>
 #endif

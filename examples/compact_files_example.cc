@@ -6,7 +6,7 @@
 // An example code demonstrating how to use CompactFiles, EventListener,
 // and GetColumnFamilyMetaData APIs to implement custom compaction algorithm.
 
-#include <mutex>
+#include "port/port.h"
 #include <string>
 #include "rocksdb/db.h"
 #include "rocksdb/env.h"
