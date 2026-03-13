@@ -60,6 +60,11 @@ int photon_fdatasync(int fd) {
     return photon::iouring_fdatasync(fd);
 }
 #else
+
+#include <boost/fiber/all.hpp>
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/steady_timer.hpp>
+
 ssize_t photon_read(int fd, void* buf, size_t count) {
     return read(fd, buf, count);
 }

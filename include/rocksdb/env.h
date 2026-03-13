@@ -17,11 +17,14 @@
 #pragma once
 
 #include <stdint.h>
+#include <boost/fiber/condition_variable.hpp>
+#include <boost/fiber/mutex.hpp>
 #include <cstdarg>
 #include <functional>
 #include <limits>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 #include "rocksdb/status.h"
 #include "rocksdb/thread_status.h"
@@ -1485,6 +1488,9 @@ public:
 private:
     PhotonEnv(int vcpu_num, int ev_engine);
     ~PhotonEnv();
+    std::thread worker;
+    boost::fibers::mutex mtx;
+    boost::fibers::condition_variable_any cv;
 };
 
 }  // namespace rocksdb

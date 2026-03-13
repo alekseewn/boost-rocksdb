@@ -9,12 +9,14 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <boost/fiber/algo/work_stealing.hpp>
 #include <boost/fiber/context.hpp>
 #include <boost/fiber/fiber.hpp>
 #include <boost/thread/detail/thread.hpp>
 #include <cstdint>
 #include <functional>
 #include <string>
+#include <thread>
 #include "port/port.h"
 #if defined(OS_LINUX)
 #include <linux/fs.h>
@@ -130,8 +132,8 @@ class PosixEnv : public Env {
   PosixEnv();
 
   ~PosixEnv() override {
-    LOG_INFO("global BOOSTEnv destruct: Join thread pools");
-    return;
+    LOG_INFO("global Posix Env destruct: Join thread pools");
+
     for (auto& tid : threads_to_join_) {
       tid.join();
     }
@@ -1057,6 +1059,7 @@ struct StartThreadState {
 };
 
 static void* StartThreadWrapper(void* arg) {
+  LOG_INFO("Posix Env StartThreadWrapper");
   StartThreadState* state = reinterpret_cast<StartThreadState*>(arg);
   state->user_function(state->arg);
   delete state;
@@ -1107,22 +1110,28 @@ std::string Env::GenerateUniqueId() {
 
 PhotonEnv::PhotonEnv(int vcpu_num, int ev_engine) {
     LOG_INFO("Begin init BOOST Env");
-    // set_log_output_level(ALOG_INFO);
-    // int ret = photon::init(ev_engine, photon::INIT_IO_NONE);
-    // if (ret != 0) {
-    //     LOG_FATAL("Photon init failed");
-    //     abort();
-    // }
-    // ret = photon_std::work_pool_init(vcpu_num, ev_engine, photon::INIT_IO_NONE);
-    // if (ret != 0) {
-    //     LOG_FATAL("Work-pool init failed");
-    //     abort();
-    // }
+    worker = std::thread([this]() {
+            boost::fibers::use_scheduling_algorithm<boost::fibers::algo::work_stealing>(2);
+
+            std::cout << "[Thread " << std::this_thread::get_id() << "] Scheduler initialized." << std::endl;
+
+            mtx.lock();
+            // suspend main-fiber from the worker thread
+            cv.wait(mtx);
+            mtx.unlock();
+            
+            std::cout << "[Thread] Fiber joined. Thread exiting." << std::endl;
+        });
+    boost::fibers::use_scheduling_algorithm<boost::fibers::algo::work_stealing>(2);
+
     LOG_INFO("End init BOOST Env");
 }
 
 PhotonEnv::~PhotonEnv() {
     LOG_INFO("Begin destruct BOOST Env");
+    cv.notify_all();
+    worker.join();
+
     // photon_std::work_pool_fini();
     // photon::fini();
     LOG_INFO("End destruct BOOST Env");

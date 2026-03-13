@@ -14,7 +14,7 @@ namespace rocksdb {
   
 
 #ifdef ROCKSDB_SUPPORT_THREAD_LOCAL
-extern FiberLocal<PerfLevel> perf_level(kEnableCount);
+FiberLocal<PerfLevel> perf_level(kEnableCount);
 #else
 PerfLevel perf_level = kEnableCount;
 #endif

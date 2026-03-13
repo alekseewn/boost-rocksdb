@@ -8,6 +8,10 @@
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
 #include "util/threadpool_imp.h"
+#include <boost/fiber/operations.hpp>
+#include <boost/fiber/scheduler.hpp>
+#include <boost/fiber/algo/work_stealing.hpp>
+#include <thread>
 
 #include "monitoring/thread_status_util.h"
 #include "port/port.h"
@@ -144,9 +148,10 @@ ThreadPoolImpl::Impl::Impl()
 }
 
 inline
-ThreadPoolImpl::Impl::~Impl() { assert(bgthreads_.size() == 0U); }
+ThreadPoolImpl::Impl::~Impl() { assert(bgthreads_.size() == 0U); std::cout << "ThreadPoolImpl::Impl::~Impl" << std::endl; }
 
 void ThreadPoolImpl::Impl::JoinThreads(bool wait_for_jobs_to_complete) {
+  std::cout << "start JOIN ThreadPoolImpl" << std::endl;
 
   std::unique_lock<boost::fibers::mutex> lock(mu_);
   assert(!exit_all_threads_);
@@ -169,6 +174,7 @@ void ThreadPoolImpl::Impl::JoinThreads(bool wait_for_jobs_to_complete) {
 
   exit_all_threads_ = false;
   wait_for_jobs_to_complete_ = false;
+  std::cout << "end JOIN ThreadPoolImpl" << std::endl;
 }
 
 inline
@@ -194,6 +200,7 @@ void ThreadPoolImpl::Impl::BGThread(size_t thread_id) {
     while (!exit_all_threads_ && !IsLastExcessiveThread(thread_id) &&
            (queue_.empty() || IsExcessiveThread(thread_id))) {
       bgsignal_.wait(lock);
+      std::cout << "IM WAKE UP id " << thread_id << std::endl;
     }
 
     if (exit_all_threads_) {  // mechanism to let BG threads exit safely
@@ -254,8 +261,10 @@ struct BGThreadMetadata {
 };
 
 void* ThreadPoolImpl::Impl::BGThreadWrapper(void* arg) {
+
   BGThreadMetadata* meta = reinterpret_cast<BGThreadMetadata*>(arg);
   size_t thread_id = meta->thread_id_;
+  std::cout << "START WRAPPER id = " << std::this_thread::get_id() << std::endl;
   ThreadPoolImpl::Impl* tp = meta->thread_pool_;
 #ifdef ROCKSDB_USING_THREAD_STATUS
   // initialize it because compiler isn't good enough to see we don't use it
@@ -283,6 +292,7 @@ void* ThreadPoolImpl::Impl::BGThreadWrapper(void* arg) {
 #endif
   delete meta;
   tp->BGThread(thread_id);
+  std::cout << thread_id << " BGThread" << std::endl; 
 #ifdef ROCKSDB_USING_THREAD_STATUS
   ThreadStatusUtil::UnregisterThread();
 #endif
@@ -318,6 +328,7 @@ void ThreadPoolImpl::Impl::StartBGThreads() {
 
     bgthreads_.push_back(std::move(p_t));
   }
+  boost::this_fiber::yield();
 }
 
 void ThreadPoolImpl::Impl::Submit(std::function<void()>&& schedule,
