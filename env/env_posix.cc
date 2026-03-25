@@ -1108,26 +1108,20 @@ std::string Env::GenerateUniqueId() {
   return uuid2;
 }
 
-PhotonEnv::PhotonEnv(int vcpu_num, int ev_engine) {
+BoostEnv::BoostEnv(int vcpu_num, int ev_engine) {
     LOG_INFO("Begin init BOOST Env");
-    worker = std::thread([this]() {
+    auto worker = std::thread([this]() {
             boost::fibers::use_scheduling_algorithm<boost::fibers::algo::work_stealing>(2);
-
-            std::cout << "[Thread " << std::this_thread::get_id() << "] Scheduler initialized." << std::endl;
-
             mtx.lock();
-            // suspend main-fiber from the worker thread
+            // Main файбер в ожидании, можно исполнять другие
             cv.wait(mtx);
-            mtx.unlock();
-            
-            std::cout << "[Thread] Fiber joined. Thread exiting." << std::endl;
+            mtx.unlock();           
         });
     boost::fibers::use_scheduling_algorithm<boost::fibers::algo::work_stealing>(2);
-
     LOG_INFO("End init BOOST Env");
 }
 
-PhotonEnv::~PhotonEnv() {
+BoostEnv::~BoostEnv() {
     LOG_INFO("Begin destruct BOOST Env");
     cv.notify_all();
     worker.join();
@@ -1152,7 +1146,7 @@ Env* Env::Default() {
   // the destructor of static PosixEnv will go first, then the
   // the singletons of ThreadLocalPtr.
 #ifdef INIT_PHOTON_IN_ENV
-  PhotonEnv::Singleton();
+  BoostEnv::Singleton();
 #endif
   ThreadLocalPtr::InitSingletons();
   CompressionContextCache::InitSingleton();
