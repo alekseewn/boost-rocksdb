@@ -1110,21 +1110,27 @@ std::string Env::GenerateUniqueId() {
 
 BoostEnv::BoostEnv(int vcpu_num, int ev_engine) {
     LOG_INFO("Begin init BOOST Env");
-    auto worker = std::thread([this]() {
-            boost::fibers::use_scheduling_algorithm<boost::fibers::algo::work_stealing>(2);
+    for (int i = 0; i < NUM_WORKER; ++i) {
+      workers.emplace_back([this]() {
+            boost::fibers::use_scheduling_algorithm<boost::fibers::algo::work_stealing>(NUM_WORKER + 1);
             mtx.lock();
             // Main файбер в ожидании, можно исполнять другие
             cv.wait(mtx);
             mtx.unlock();           
         });
-    boost::fibers::use_scheduling_algorithm<boost::fibers::algo::work_stealing>(2);
+    }
+    boost::fibers::use_scheduling_algorithm<boost::fibers::algo::work_stealing>(NUM_WORKER + 1);
     LOG_INFO("End init BOOST Env");
 }
 
 BoostEnv::~BoostEnv() {
     LOG_INFO("Begin destruct BOOST Env");
+
     cv.notify_all();
-    worker.join();
+    for (auto i = workers.rbegin(); i != workers.rend(); i++) {
+      i->join();
+    }
+    // worker.join();
 
     // photon_std::work_pool_fini();
     // photon::fini();

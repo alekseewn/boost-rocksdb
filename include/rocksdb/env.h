@@ -20,6 +20,7 @@
 #include <boost/fiber/condition_variable.hpp>
 #include <boost/fiber/mutex.hpp>
 #include <cstdarg>
+#include <cstddef>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -1488,7 +1489,8 @@ public:
 private:
     BoostEnv(int vcpu_num, int ev_engine);
     ~BoostEnv();
-    std::thread worker;
+    const size_t NUM_WORKER = 1;
+    std::vector<std::thread> workers;
     boost::fibers::mutex mtx;
     boost::fibers::condition_variable_any cv;
 };
