@@ -193,7 +193,7 @@ private:
         auto path = std::string(get_current_dir_name()) + "/" + FLAGS_db_dir;
         if (FLAGS_clean_db) {
             int ret = system((std::string("rm -rf ") + path).c_str());
-            (void)ret;
+(void)ret;
             LOG_INFO("Create new db at `", path.c_str());
         } else {
             LOG_INFO("Open db at `", path.c_str());
