@@ -27,8 +27,17 @@ DEFINE_int32(port, 9527, "Server listen port");
 DEFINE_int32(show_qps_interval, 1, "Interval seconds to show qps");
 DEFINE_int32(vcpu_num, 8, "vCPU number");
 DEFINE_bool(use_photon, false, "Use photon rocksdb instead of the native");
+DEFINE_string(event_engine, "epoll", "Event engine: epoll, iouring");
 DEFINE_string(db_dir, "perf-db", "DB dir");
 DEFINE_bool(clean_db, false, "Clean db before tests");
+
+static uint64_t g_event_engine = photon::INIT_EVENT_EPOLL;
+
+static uint64_t get_event_engine() {
+    if (FLAGS_event_engine == "iouring") return g_event_engine;
+    if (FLAGS_event_engine == "epoll") return photon::INIT_EVENT_EPOLL;
+    return photon::INIT_EVENT_EPOLL;
+}
 
 static std::atomic<uint64_t> qps{0};
 
@@ -138,7 +147,7 @@ class ExampleServer {
 public:
     ExampleServer() {
         writeOptions.sync = false;
-        pool = new photon::WorkPool(FLAGS_vcpu_num, photon::INIT_EVENT_IOURING, 0);
+        pool = new photon::WorkPool(FLAGS_vcpu_num, g_event_engine, 0);
     }
 
     int run() {
@@ -161,7 +170,7 @@ public:
 
         for (int i = 0; i < FLAGS_vcpu_num; ++i) {
             std::thread([&] {
-                int ret = photon::init(photon::INIT_EVENT_IOURING, photon::INIT_IO_NONE);
+                int ret = photon::init(g_event_engine, photon::INIT_IO_NONE);
                 if (ret) {
                     abort();
                 }
@@ -183,7 +192,8 @@ private:
     int open_db() {
         auto path = std::string(get_current_dir_name()) + "/" + FLAGS_db_dir;
         if (FLAGS_clean_db) {
-            system((std::string("rm -rf ") + path).c_str());
+            int ret = system((std::string("rm -rf ") + path).c_str());
+(void)ret;
             LOG_INFO("Create new db at `", path.c_str());
         } else {
             LOG_INFO("Open db at `", path.c_str());
@@ -199,7 +209,8 @@ private:
 int main(int argc, char** argv) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
     set_log_output_level(ALOG_INFO);
-    if (photon::init(photon::INIT_EVENT_IOURING, photon::INIT_IO_NONE)) {
+    g_event_engine = get_event_engine();
+    if (photon::init(g_event_engine, photon::INIT_IO_NONE)) {
         LOG_ERROR_RETURN(0, -1, "fail to init photon");
     }
     DEFER(photon::fini());
