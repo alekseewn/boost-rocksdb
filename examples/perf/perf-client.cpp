@@ -11,9 +11,18 @@
 DEFINE_int32(port, 9527, "server port");
 DEFINE_string(host, "127.0.0.1", "server ip");
 DEFINE_string(type, "fill", "fill/get/put");
+DEFINE_string(event_engine, "epoll", "Event engine: epoll, iouring");
 DEFINE_int32(concurrency, 32, "concurrency");
 DEFINE_int32(key_num, 100'000, "key num");
 DEFINE_int32(value_size, 256 * 1024, "value size");
+
+static uint64_t g_event_engine = photon::INIT_EVENT_EPOLL;
+
+static uint64_t get_event_engine() {
+    if (FLAGS_event_engine == "iouring") return photon::INIT_EVENT_IOURING;
+    if (FLAGS_event_engine == "epoll") return photon::INIT_EVENT_EPOLL;
+    return photon::INIT_EVENT_EPOLL;
+}
 
 static std::string random_value(size_t size) {
     static std::random_device rd;
@@ -92,7 +101,8 @@ void run_fill(photon::net::EndPoint ep, photon::rpc::StubPool* pool) {
 int main(int argc, char** argv) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
     set_log_output_level(ALOG_INFO);
-    if (photon::init(photon::INIT_EVENT_IOURING, photon::INIT_IO_NONE)) {
+    g_event_engine = get_event_engine();
+    if (photon::init(g_event_engine, photon::INIT_IO_NONE)) {
         LOG_ERROR_RETURN(0, -1, "fail to init photon");
     }
     DEFER(photon::fini());
