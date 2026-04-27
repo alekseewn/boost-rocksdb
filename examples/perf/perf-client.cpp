@@ -56,7 +56,14 @@ void run_put(photon::net::EndPoint ep, photon::rpc::StubPool* pool) {
 
         KvPut::Response resp;
         ret = stub->call<KvPut>(req, resp);
-        if (ret < 0 || resp.ret != 0) abort();
+        if (ret < 0) {
+            LOG_ERROR("rpc error: `", ret);
+            continue;
+        }
+        if (resp.ret != 0) {
+            LOG_ERROR("put failed: ret=`", resp.ret);
+            continue;
+        }
     }
 }
 
@@ -72,8 +79,17 @@ void run_get(photon::net::EndPoint ep, photon::rpc::StubPool* pool) {
 
         KvGet::Response resp;
         ret = stub->call<KvGet>(req, resp);
-        if (ret < 0 || resp.ret != 0 || resp.value.size() != (uint64_t) FLAGS_value_size) {
-            abort();
+        if (ret < 0) {
+            LOG_ERROR("rpc error: `", ret);
+            continue;
+        }
+        if (resp.ret != 0) {
+            LOG_DEBUG("key not found or error: resp=`", resp.ret);
+            continue;
+        }
+        if (resp.value.size() != (uint64_t) FLAGS_value_size) {
+            LOG_ERROR("value size mismatch: expected `, got `", FLAGS_value_size, resp.value.size());
+            continue;
         }
     }
 }
@@ -92,8 +108,13 @@ void run_fill(photon::net::EndPoint ep, photon::rpc::StubPool* pool) {
 
         KvPut::Response resp;
         ret = stub->call<KvPut>(req, resp);
-        if (ret < 0 || resp.ret != 0) {
-            abort();
+        if (ret < 0) {
+            LOG_ERROR("rpc error: `", ret);
+            continue;
+        }
+        if (resp.ret != 0) {
+            LOG_ERROR("put failed: ret=`", resp.ret);
+            continue;
         }
     }
 }

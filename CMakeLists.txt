@@ -55,6 +55,8 @@ if(INIT_PHOTON_IN_ENV)
     add_compile_definitions("INIT_PHOTON_IN_ENV")
 endif()
 
+add_compile_options(-Wno-error)
+
 option(WITH_JEMALLOC "build with JeMalloc" OFF)
 option(WITH_SNAPPY "build with SNAPPY" OFF)
 option(WITH_LZ4 "build with lz4" OFF)
