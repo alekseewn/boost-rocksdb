@@ -1,4 +1,4 @@
 [submodule "third-party/PhotonLibOS"]
 	path = third-party/PhotonLibOS
-	url = https://github.com/alibaba/PhotonLibOS.git
+	url = https://github.com/alekseewn/PhotonLibOS.git
 	branch = release/0.8
