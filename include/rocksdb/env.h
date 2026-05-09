@@ -1474,7 +1474,7 @@ public:
     static BoostEnv& Singleton() {
         // 8 vCPU. Hardcoded for now.
 #ifdef PHOTON_ENABLE_URING
-        static PhotonEnv instance(8, INIT_EVENT_IOURING);
+        static BoostEnv instance(8, INIT_EVENT_IOURING);
 #else
         static BoostEnv instance(8, INIT_EVENT_EPOLL);
 #endif
