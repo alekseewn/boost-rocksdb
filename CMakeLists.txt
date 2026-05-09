@@ -765,7 +765,7 @@ else()
   add_library(${ROCKSDB_SHARED_LIB} SHARED ${SOURCES})
   target_link_libraries(${ROCKSDB_SHARED_LIB}
     ${THIRDPARTY_LIBS} ${SYSTEM_LIBS}
-    # $<BUILD_INTERFACE:photon_static>
+    $<BUILD_INTERFACE:photon_static>
     )
   set_target_properties(${ROCKSDB_SHARED_LIB} PROPERTIES
                         LINKER_LANGUAGE CXX
@@ -778,7 +778,7 @@ endif()
 add_library(${ROCKSDB_STATIC_LIB} STATIC ${SOURCES})
 target_link_libraries(${ROCKSDB_STATIC_LIB}
   ${THIRDPARTY_LIBS} ${SYSTEM_LIBS} 
-  #$<BUILD_INTERFACE:photon_static>
+  $<BUILD_INTERFACE:photon_static>
   )
 
 if(WIN32)

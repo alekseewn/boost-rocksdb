@@ -40,7 +40,7 @@ double now() {
 }  // namespace Timing
 
 int main() {
-  rocksdb::PhotonEnv::Singleton();
+  rocksdb::BoostEnv::Singleton();
   TimerQueue q;
 
   double tnow = Timing::now();
