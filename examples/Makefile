@@ -1,4 +1,3 @@
-include ../make_config.mk
 
 ifndef DISABLE_JEMALLOC
 	ifdef JEMALLOC

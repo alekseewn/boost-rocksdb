@@ -44,6 +44,9 @@ endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/modules/")
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+
 # Photon
 set(PHOTON_ENABLE_URING OFF CACHE INTERNAL "Enable iouring")
 add_subdirectory(third-party/PhotonLibOS)

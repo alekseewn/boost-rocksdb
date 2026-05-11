@@ -34,7 +34,7 @@ DEFINE_bool(clean_db, false, "Clean db before tests");
 static uint64_t g_event_engine = photon::INIT_EVENT_EPOLL;
 
 static uint64_t get_event_engine() {
-    if (FLAGS_event_engine == "iouring") return g_event_engine;
+    if (FLAGS_event_engine == "iouring") return photon::INIT_EVENT_IOURING;
     if (FLAGS_event_engine == "epoll") return photon::INIT_EVENT_EPOLL;
     return photon::INIT_EVENT_EPOLL;
 }
@@ -81,37 +81,39 @@ public:
 
     int do_rpc_service(KvPut::Request* req, KvPut::Response* resp, IOVector*, IStream*) {
         if (FLAGS_use_photon) {
-            do_put(req);
+            do_put(req, resp);
         } else {
             photon::semaphore sem;
             auto func = new auto([&]() {
-                do_put(req);
+                do_put(req, resp);
                 sem.signal(1);
             });
             work_pool_->async_call(func);
             sem.wait(1);
         }
-        resp->ret = 0;
-        qps++;
+        if (resp->ret == 0) {
+            qps++;
+        }
         return 0;
     }
 
     int do_rpc_service(KvGet::Request* req, KvGet::Response* resp, IOVector*, IStream*) {
         std::string val;
         if (FLAGS_use_photon) {
-            do_get(req, &val);
+            do_get(req, resp, &val);
         } else {
             photon::semaphore sem;
             auto func = new auto([&]() {
-                do_get(req, &val);
+                do_get(req, resp, &val);
                 sem.signal(1);
             });
             work_pool_->async_call(func);
             sem.wait(1);
         }
-        resp->ret = 0;
-        resp->value.assign(val);
-        qps++;
+        if (resp->ret == 0) {
+            resp->value.assign(val);
+            qps++;
+        }
         return 0;
     }
 
@@ -123,23 +125,32 @@ private:
     rocksdb::ReadOptions* readOptions_;   // Owned by others
     photon::WorkPool* work_pool_;         // Owned by others
 
-    void do_put(KvPut::Request* req) {
+    void do_put(KvPut::Request* req, KvPut::Response* resp) {
         rocksdb::Slice key(req->key.c_str(), req->key.size());
         rocksdb::Slice val(req->value.c_str(), req->value.size());
         rocksdb::Status s = db_->Put(*writeOptions_, key, val);
         if (!s.ok()) {
-            LOG_ERROR("db write error");
-            abort();
+            LOG_ERROR("db write error: `", s.ToString());
+            resp->ret = -1;
+            return;
         }
+        resp->ret = 0;
     }
 
-    void do_get(KvGet::Request* req, std::string* val) {
+    void do_get(KvGet::Request* req, KvGet::Response* resp, std::string* val) {
         rocksdb::Slice key(req->key.c_str(), req->key.size());
         rocksdb::Status s = db_->Get(*readOptions_, key, val);
-        if (!s.ok()) {
-            LOG_ERROR("db read error");
-            abort();
+        if (s.IsNotFound()) {
+            LOG_DEBUG("key not found: `", req->key.c_str());
+            resp->ret = -1;
+            return;
         }
+        if (!s.ok()) {
+            LOG_ERROR("db read error: `", s.ToString());
+            resp->ret = -2;
+            return;
+        }
+        resp->ret = 0;
     }
 };
 
@@ -193,7 +204,7 @@ private:
         auto path = std::string(get_current_dir_name()) + "/" + FLAGS_db_dir;
         if (FLAGS_clean_db) {
             int ret = system((std::string("rm -rf ") + path).c_str());
-            (void)ret;
+(void)ret;
             LOG_INFO("Create new db at `", path.c_str());
         } else {
             LOG_INFO("Open db at `", path.c_str());
@@ -210,10 +221,10 @@ int main(int argc, char** argv) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
     set_log_output_level(ALOG_INFO);
     g_event_engine = get_event_engine();
-    if (photon::init(g_event_engine, photon::INIT_IO_NONE)) {
-        LOG_ERROR_RETURN(0, -1, "fail to init photon");
-    }
-    DEFER(photon::fini());
+    // if (photon::init(g_event_engine, photon::INIT_IO_NONE)) {
+    //     LOG_ERROR_RETURN(0, -1, "fail to init photon");
+    // }
+    // DEFER(photon::fini());
 
     photon::thread_create11(show_qps_loop);
 
