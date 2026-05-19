@@ -7,6 +7,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
+#include <boost/fiber/algo/work_stealing.hpp>
+#include <boost/fiber/io_uring.hpp>
 #ifdef ROCKSDB_LIB_IO_POSIX
 #include "env/io_posix.h"
 #include <errno.h>
@@ -61,26 +63,29 @@ int photon_fdatasync(int fd) {
 }
 #else
 
-#include <boost/fiber/all.hpp>
-#include <boost/asio/io_context.hpp>
-#include <boost/asio/steady_timer.hpp>
-#include <boost/fiber/io_uring.hpp>
-
 ssize_t photon_read(int fd, void* buf, size_t count) {
-    return boost::fibers::io_uring::read(fd, buf, count);
-    // return read(fd, buf, count);
+    if (boost::fibers::algo::work_stealing::current()) {
+        return boost::fibers::io_uring::read(fd, buf, count);
+    }
+    return ::read(fd, buf, count);
 }
 ssize_t photon_write(int fd, const void* buf, size_t count) {
-  return boost::fibers::io_uring::write(fd, buf, count);
-    // return write(fd, buf, count);
+    if (boost::fibers::algo::work_stealing::current()) {
+        return boost::fibers::io_uring::write(fd, buf, count);
+    }
+    return ::write(fd, buf, count);
 }
 ssize_t photon_pread(int fd, void* buf, size_t count, off_t offset) {
-  return boost::fibers::io_uring::pread(fd, buf, count, offset);
-    // return pread(fd, buf, count, offset);
+    if (boost::fibers::algo::work_stealing::current()) {
+        return boost::fibers::io_uring::pread(fd, buf, count, offset);
+    }
+    return ::pread(fd, buf, count, offset);
 }
 ssize_t photon_pwrite(int fd, const void* buf, size_t count, off_t offset) {
-  return boost::fibers::io_uring::pwrite(fd, buf, count, offset);
-    // return pwrite(fd, buf, count, offset);
+    if (boost::fibers::algo::work_stealing::current()) {
+        return boost::fibers::io_uring::pwrite(fd, buf, count, offset);
+    }
+    return ::pwrite(fd, buf, count, offset);
 }
 int photon_fsync(int fd) {
     return fsync(fd);

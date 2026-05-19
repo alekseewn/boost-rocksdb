@@ -1489,7 +1489,7 @@ public:
 private:
     BoostEnv(int vcpu_num, int ev_engine);
     ~BoostEnv();
-    const size_t NUM_WORKER = 1;
+    const size_t NUM_WORKER = 8;
     std::vector<std::thread> workers;
     boost::fibers::mutex mtx;
     boost::fibers::condition_variable_any cv;
