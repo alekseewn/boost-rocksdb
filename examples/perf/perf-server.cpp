@@ -6,6 +6,7 @@
 #include <atomic>
 #include <vector>
 #include <random>
+#include <cstdio>
 
 #include <gflags/gflags.h>
 #include <photon/common/alog.h>
@@ -40,12 +41,18 @@ static uint64_t get_event_engine() {
 }
 
 static std::atomic<uint64_t> qps{0};
+static std::atomic<uint64_t> total_bytes{0};
 
 static void show_qps_loop() {
     while (true) {
         photon::thread_sleep(FLAGS_show_qps_interval);
-        LOG_INFO("QPS: `", qps.load() / FLAGS_show_qps_interval);
-        qps = 0;
+        auto ops = qps.exchange(0);
+        auto bytes = total_bytes.exchange(0);
+        double mbps = (double)bytes / FLAGS_show_qps_interval / (1024.0 * 1024.0);
+        char tp_buf[32];
+        snprintf(tp_buf, sizeof(tp_buf), "%.2f", mbps);
+        LOG_INFO("QPS: ` | Throughput: ` MB/s",
+                 ops / FLAGS_show_qps_interval, tp_buf);
     }
 }
 
@@ -93,6 +100,7 @@ public:
         }
         if (resp->ret == 0) {
             qps++;
+            total_bytes += req->key.size() + req->value.size();
         }
         return 0;
     }
@@ -113,6 +121,7 @@ public:
         if (resp->ret == 0) {
             resp->value.assign(val);
             qps++;
+            total_bytes += req->key.size() + val.size();
         }
         return 0;
     }
