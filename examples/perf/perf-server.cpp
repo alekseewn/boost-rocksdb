@@ -23,15 +23,18 @@
 
 DEFINE_int32(port, 9527, "Server listen port");
 DEFINE_int32(show_qps_interval, 1, "Interval seconds to show qps");
+DEFINE_int32(threads, 4, "Number of fiber/I/O worker threads");
 DEFINE_string(db_dir, "perf-db", "DB dir");
 DEFINE_bool(clean_db, false, "Clean db before tests");
 
 static std::atomic<uint64_t> g_qps{0};
+static std::atomic<uint64_t> g_qps_total{0};
 static std::atomic<bool> g_shutdown{false};
+static std::atomic<int> g_active_puts{0};
+static std::atomic<int> g_active_reads{0};
 
-// ── Buffered reader (heap-allocated buffer to fit fiber stack) ───────
 class BufferedReader {
-    static constexpr size_t BUF_SIZE = 64 * 1024;
+    static constexpr size_t BUF_SIZE = 128 * 1024;
     int fd_;
     std::unique_ptr<char[]> buf_;
     size_t pos_ = 0;
@@ -39,7 +42,9 @@ class BufferedReader {
 
     bool refill() {
         pos_ = 0;
+        g_active_reads++;
         int r = boost::fibers::io_uring::read(fd_, buf_.get(), BUF_SIZE);
+        g_active_reads--;
         if (r <= 0) { len_ = 0; return false; }
         len_ = static_cast<size_t>(r);
         return true;
@@ -63,7 +68,6 @@ public:
     }
 };
 
-// ── Buffered writer (heap-allocated buffer to fit fiber stack) ───────
 class BufferedWriter {
     static constexpr size_t BUF_SIZE = 128 * 1024;
     int fd_;
@@ -107,44 +111,60 @@ public:
     }
 };
 
-// ── Handle one client connection ─────────────────────────────────────
 static void handle_client(int fd, rocksdb::DB* db,
                           rocksdb::WriteOptions* write_opts,
                           rocksdb::ReadOptions* read_opts) {
+    fprintf(stderr, "[srv] handle_client fd=%d START\n", fd);
     BufferedReader rd(fd);
     BufferedWriter wr(fd);
+    int put_count = 0;
 
     while (true) {
         uint8_t opcode;
-        if (!rd.read(reinterpret_cast<char*>(&opcode), 1)) break;
+        if (!rd.read(reinterpret_cast<char*>(&opcode), 1)) {
+            fprintf(stderr, "[srv] fd=%d read opcode failed after %d puts\n", fd, put_count);
+            break;
+        }
 
         switch (opcode) {
         case OP_PUT: {
+            g_active_puts++;
             uint32_t klen_n, vlen_n;
-            if (!rd.read(reinterpret_cast<char*>(&klen_n), 4)) goto done;
+            if (!rd.read(reinterpret_cast<char*>(&klen_n), 4)) { g_active_puts--; goto done; }
             uint32_t klen = ntohl(klen_n);
-            if (klen > (1 << 20)) goto done;
+            if (klen > (1 << 20)) { g_active_puts--; goto done; }
 
             std::string key_buf(klen, '\0');
-            if (!rd.read(&key_buf[0], klen)) goto done;
+            if (!rd.read(&key_buf[0], klen)) { g_active_puts--; goto done; }
 
-            if (!rd.read(reinterpret_cast<char*>(&vlen_n), 4)) goto done;
+            if (!rd.read(reinterpret_cast<char*>(&vlen_n), 4)) { g_active_puts--; goto done; }
             uint32_t vlen = ntohl(vlen_n);
-            if (vlen > (16 << 20)) goto done;
+            if (vlen > (16 << 20)) { g_active_puts--; goto done; }
 
             std::string val_buf(vlen, '\0');
-            if (!rd.read(&val_buf[0], vlen)) goto done;
+            if (!rd.read(&val_buf[0], vlen)) { g_active_puts--; goto done; }
 
             rocksdb::Status s = db->Put(*write_opts,
                 rocksdb::Slice(key_buf),
                 rocksdb::Slice(val_buf));
 
             int32_t ret = s.ok() ? 0 : -1;
+            if (!s.ok()) {
+                fprintf(stderr, "Put FAILED: %s\n", s.ToString().c_str());
+            }
             int32_t ret_n = htonl(ret);
-            if (!wr.write(reinterpret_cast<const char*>(&ret_n), 4)) goto done;
-            if (!wr.flush()) goto done;
+            if (!wr.write(reinterpret_cast<const char*>(&ret_n), 4)) { g_active_puts--; goto done; }
 
+            g_active_puts--;
             g_qps++;
+            g_qps_total++;
+            put_count++;
+
+            if (put_count % 10000 == 0) {
+                fprintf(stderr, "[fd=%d] PUT count: %d\n", fd, put_count);
+            }
+
+            if (!wr.flush()) goto done;
             break;
         }
         case OP_GET: {
@@ -172,9 +192,10 @@ static void handle_client(int fd, rocksdb::DB* db,
                 ret_n = htonl(ret);
                 if (!wr.write(reinterpret_cast<const char*>(&ret_n), 4)) goto done;
             }
-            if (!wr.flush()) goto done;
 
             g_qps++;
+            g_qps_total++;
+            if (!wr.flush()) goto done;
             break;
         }
         default:
@@ -182,11 +203,11 @@ static void handle_client(int fd, rocksdb::DB* db,
         }
     }
 done:
+    fprintf(stderr, "Client fd=%d disconnected, put_count=%d\n", fd, put_count);
     wr.flush();
     ::close(fd);
 }
 
-// ── Accept loop using io_uring accept ───────────────────────────────
 static void accept_loop(int listen_fd, rocksdb::DB* db,
                         rocksdb::WriteOptions* write_opts,
                         rocksdb::ReadOptions* read_opts) {
@@ -204,11 +225,10 @@ static void accept_loop(int listen_fd, rocksdb::DB* db,
             break;
         }
 
-        // TCP_NODELAY to reduce latency
         int flag = 1;
         ::setsockopt(client_fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
+        fprintf(stderr, "[srv] accepted fd=%d\n", client_fd);
 
-        // Each client gets its own fiber.
         boost::fibers::fiber(
             std::allocator_arg,
             boost::fibers::fixedsize_stack(256 * 1024),
@@ -218,7 +238,6 @@ static void accept_loop(int listen_fd, rocksdb::DB* db,
     }
 }
 
-// ── Signal handler ──
 static void signal_handler(int) { g_shutdown.store(true); }
 
 int main(int argc, char** argv) {
@@ -233,7 +252,7 @@ int main(int argc, char** argv) {
     options.OptimizeLevelStyleCompaction();
     options.compression = rocksdb::CompressionType::kNoCompression;
     options.create_if_missing = true;
-    options.write_buffer_size = 64 * 1024 * 1024;       // 64MB memtable
+    options.write_buffer_size = 64 * 1024 * 1024;
     options.max_write_buffer_number = 4;
     options.min_write_buffer_number_to_merge = 2;
     options.level0_file_num_compaction_trigger = 4;
@@ -241,8 +260,13 @@ int main(int argc, char** argv) {
     options.max_background_compactions = 4;
     options.max_background_flushes = 2;
 
-    char cwd[4096];
-    auto path = std::string(::getcwd(cwd, sizeof(cwd))) + "/" + FLAGS_db_dir;
+    std::string path;
+    if (!FLAGS_db_dir.empty() && FLAGS_db_dir[0] == '/') {
+        path = FLAGS_db_dir;
+    } else {
+        char cwd[4096];
+        path = std::string(::getcwd(cwd, sizeof(cwd))) + "/" + FLAGS_db_dir;
+    }
     if (FLAGS_clean_db) {
         int ret = system((std::string("rm -rf ") + path).c_str());
         (void)ret;
@@ -266,7 +290,6 @@ int main(int argc, char** argv) {
     read_opts.verify_checksums = false;
     read_opts.fill_cache = true;
 
-    // Create single listen socket
     int listen_fd = ::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
     if (listen_fd < 0) { perror("socket"); return -1; }
     int opt = 1;
@@ -284,38 +307,56 @@ int main(int argc, char** argv) {
     }
     fprintf(stdout, "Listening on port %d\n", FLAGS_port);
 
-    // Signal handler for graceful shutdown
     struct sigaction sa{};
     sa.sa_handler = signal_handler;
     sigaction(SIGINT, &sa, nullptr);
     sigaction(SIGTERM, &sa, nullptr);
 
-    // Single thread with work_stealing scheduler (uses io_uring internally)
+    int num_threads = FLAGS_threads;
     std::vector<std::thread> workers;
-    
-    boost::fibers::use_scheduling_algorithm<boost::fibers::algo::work_stealing>(1);
 
-    // Run accept loop as a fiber
-    boost::fibers::fiber([&]() {
-        accept_loop(listen_fd, db, &write_opts, &read_opts);
-    }).detach();
+    auto worker_fn = [&](int thread_id) {
+        boost::fibers::use_scheduling_algorithm<
+            boost::fibers::algo::work_stealing>(num_threads);
 
-    // QPS reporter fiber
-    boost::fibers::fiber([&]() {
-        while (!g_shutdown.load()) {
-            boost::this_fiber::sleep_for(
-                std::chrono::seconds(FLAGS_show_qps_interval));
-            uint64_t qps = g_qps.exchange(0) / FLAGS_show_qps_interval;
-            fprintf(stdout, "QPS: %lu\n", qps);
+        // Only thread 0 runs accept_loop
+        if (thread_id == 0) {
+            boost::fibers::fiber([&]() {
+                accept_loop(listen_fd, db, &write_opts, &read_opts);
+            }).detach();
         }
-    }).detach();
 
-    // Park main fiber until shutdown — scheduler runs all detached fibers
-    boost::fibers::mutex mtx;
-    boost::fibers::condition_variable cv;
-    std::unique_lock<boost::fibers::mutex> lk(mtx);
-    while (!g_shutdown.load()) {
-        cv.wait_for(lk, std::chrono::milliseconds(500));
+        if (thread_id == 0) {
+            boost::fibers::fiber([&]() {
+                uint64_t last_total = 0;
+                while (!g_shutdown.load()) {
+                    boost::this_fiber::sleep_for(
+                        std::chrono::seconds(FLAGS_show_qps_interval));
+                    uint64_t cur_total = g_qps_total.load();
+                    uint64_t delta = cur_total - last_total;
+                    last_total = cur_total;
+                    uint64_t qps = delta / FLAGS_show_qps_interval;
+                    fprintf(stdout, "QPS: %lu | total: %lu | active_puts=%d active_reads=%d\n",
+                            qps, cur_total, g_active_puts.load(), g_active_reads.load());
+                }
+            }).detach();
+        }
+
+        boost::fibers::mutex m;
+        boost::fibers::condition_variable cv;
+        std::unique_lock<boost::fibers::mutex> lk(m);
+        while (!g_shutdown.load()) {
+            cv.wait_for(lk, std::chrono::milliseconds(500));
+        }
+    };
+
+    for (int i = 1; i < num_threads; ++i) {
+        workers.emplace_back(worker_fn, i);
+    }
+    worker_fn(0);
+
+    for (auto&& t: workers) {
+        t.join();
     }
 
     ::close(listen_fd);
