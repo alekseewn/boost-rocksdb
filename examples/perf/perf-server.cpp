@@ -8,6 +8,7 @@
 
 #include <atomic>
 #include <boost/fiber/all.hpp>
+#include <boost/fiber/algo/io_uring_stealing.hpp>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -317,7 +318,7 @@ int main(int argc, char** argv) {
 
     auto worker_fn = [&](int thread_id) {
         boost::fibers::use_scheduling_algorithm<
-            boost::fibers::algo::work_stealing>(num_threads);
+            boost::fibers::algo::io_uring_stealing>(num_threads);
 
         // Only thread 0 runs accept_loop
         if (thread_id == 0) {

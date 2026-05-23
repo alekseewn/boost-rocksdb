@@ -17,7 +17,7 @@
 #include <vector>
 
 #include <boost/fiber/all.hpp>
-#include <boost/fiber/algo/work_stealing.hpp>
+#include <boost/fiber/algo/io_uring_stealing.hpp>
 #include <boost/fiber/io_uring.hpp>
 #include <gflags/gflags.h>
 
@@ -318,7 +318,7 @@ fill_done:
 
 static void io_worker_thread(int num_threads, bool sqpoll) {
     boost::fibers::use_scheduling_algorithm<
-        boost::fibers::algo::work_stealing>(num_threads, false, sqpoll);
+        boost::fibers::algo::io_uring_stealing>(num_threads, false, sqpoll);
 
     boost::fibers::mutex mtx;
     boost::fibers::condition_variable cv;
@@ -340,7 +340,7 @@ int main(int argc, char** argv) {
     }
 
     boost::fibers::use_scheduling_algorithm<
-        boost::fibers::algo::work_stealing>(num_threads, false, FLAGS_sqpoll);
+        boost::fibers::algo::io_uring_stealing>(num_threads, false, FLAGS_sqpoll);
 
     if (FLAGS_type == "fill") {
         fprintf(stdout, "Starting fill with %d keys (value size %d, %d fibers × %d threads, pipeline %d)...\n",

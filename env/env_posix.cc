@@ -9,7 +9,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <boost/fiber/algo/work_stealing.hpp>
+#include <boost/fiber/algo/io_uring_stealing.hpp>
 #include <boost/fiber/context.hpp>
 #include <boost/fiber/fiber.hpp>
 #include <boost/thread/detail/thread.hpp>
@@ -1112,14 +1112,14 @@ BoostEnv::BoostEnv(int vcpu_num, int ev_engine) {
     LOG_INFO("Begin init BOOST Env");
     for (int i = 0; i < NUM_WORKER; ++i) {
       workers.emplace_back([this]() {
-            boost::fibers::use_scheduling_algorithm<boost::fibers::algo::work_stealing>(NUM_WORKER + 1);
+            boost::fibers::use_scheduling_algorithm<boost::fibers::algo::io_uring_stealing>(NUM_WORKER + 1);
             mtx.lock();
             // Main файбер в ожидании, можно исполнять другие
             cv.wait(mtx);
             mtx.unlock();           
         });
     }
-    boost::fibers::use_scheduling_algorithm<boost::fibers::algo::work_stealing>(NUM_WORKER + 1);
+    boost::fibers::use_scheduling_algorithm<boost::fibers::algo::io_uring_stealing>(NUM_WORKER + 1);
     LOG_INFO("End init BOOST Env");
 }
 

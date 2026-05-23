@@ -1,4 +1,5 @@
 #include <boost/fiber/all.hpp>
+#include <boost/fiber/algo/io_uring_stealing.hpp>
 #include <boost/fiber/condition_variable.hpp>
 #include <boost/fiber/mutex.hpp>
 #include <iostream>
@@ -18,7 +19,7 @@ struct Env {
     Env() {
         print("Env ctor");
         worker = std::thread([this]() {
-            boost::fibers::use_scheduling_algorithm<boost::fibers::algo::work_stealing>(2);
+            boost::fibers::use_scheduling_algorithm<boost::fibers::algo::io_uring_stealing>(2);
 
             std::cout << "[Thread " << std::this_thread::get_id() << "] Scheduler initialized." << std::endl;
 
@@ -28,7 +29,7 @@ struct Env {
             
             std::cout << "[Thread] Fiber joined. Thread exiting." << std::endl;
         });
-        boost::fibers::use_scheduling_algorithm<boost::fibers::algo::work_stealing>(2);
+        boost::fibers::use_scheduling_algorithm<boost::fibers::algo::io_uring_stealing>(2);
     }
 
     ~Env() {
@@ -50,7 +51,7 @@ int main() {
     boost::fibers::mutex mtx;
     boost::fibers::condition_variable_any cv;
     std::thread worker = std::thread([&]() {
-        boost::fibers::use_scheduling_algorithm<boost::fibers::algo::work_stealing>(2);
+        boost::fibers::use_scheduling_algorithm<boost::fibers::algo::io_uring_stealing>(2);
 
         std::cout << "[Thread " << std::this_thread::get_id() << "] Scheduler initialized." << std::endl;
 
@@ -61,7 +62,7 @@ int main() {
         std::cout << "[Thread] Fiber joined. Thread exiting." << std::endl;
     });
     
-    boost::fibers::use_scheduling_algorithm<boost::fibers::algo::work_stealing>(2);
+    boost::fibers::use_scheduling_algorithm<boost::fibers::algo::io_uring_stealing>(2);
 
     for (int i = 1; i <= 3; ++i) {
         fibers.emplace_back(fiber_func, i);
