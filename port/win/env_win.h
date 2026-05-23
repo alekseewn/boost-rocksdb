@@ -23,7 +23,7 @@
 #include <stdint.h>
 #include <windows.h>
 
-#include <mutex>
+#include "port/port.h"
 #include <vector>
 #include <string>
 
@@ -72,7 +72,7 @@ public:
 private:
 
   Env* hosted_env_;
-  mutable std::mutex mu_;
+  mutable boost::fibers::mutex mu_;
   std::vector<ThreadPoolImpl> thread_pools_;
   std::vector<WindowsThread> threads_to_join_;
 

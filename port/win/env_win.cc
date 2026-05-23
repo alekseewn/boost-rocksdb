@@ -11,7 +11,7 @@
 #include "port/win/win_thread.h"
 #include <algorithm>
 #include <ctime>
-#include <thread>
+#include "port/port.h"
 
 #include <errno.h>
 #include <process.h> // _getpid
@@ -1233,7 +1233,7 @@ void WinEnvThreads::StartThread(void(*function)(void* arg), void* arg) {
     rocksdb::port::WindowsThread th(&StartThreadWrapper, state.get());
     state.release();
 
-    std::lock_guard<std::mutex> lg(mu_);
+    std::lock_guard<boost::fibers::mutex> lg(mu_);
     threads_to_join_.push_back(std::move(th));
 
   } catch (const std::system_error& ex) {
@@ -1261,7 +1261,7 @@ uint64_t WinEnvThreads::gettid() {
 uint64_t WinEnvThreads::GetThreadID() const { return gettid(); }
 
 void  WinEnvThreads::SleepForMicroseconds(int micros) {
-  std::this_thread::sleep_for(std::chrono::microseconds(micros));
+  boost::this_fiber::sleep_for(std::chrono::microseconds(micros));
 }
 
 void WinEnvThreads::SetBackgroundThreads(int num, Env::Priority pri) {

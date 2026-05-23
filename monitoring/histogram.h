@@ -14,7 +14,7 @@
 #include <string>
 #include <vector>
 #include <map>
-#include <mutex>
+#include "port/port.h"
 
 namespace rocksdb {
 
@@ -143,7 +143,7 @@ class HistogramImpl : public Histogram {
 
  private:
   HistogramStat stats_;
-  std::mutex mutex_;
+  boost::fibers::mutex mutex_;
 };
 
 }  // namespace rocksdb

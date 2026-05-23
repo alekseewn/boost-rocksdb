@@ -6,7 +6,7 @@
 #pragma once
 #ifndef ROCKSDB_LITE
 
-#include <mutex>
+#include "port/port.h"
 #include <queue>
 #include <set>
 #include <string>
@@ -154,12 +154,12 @@ class PessimisticTransactionDB : public TransactionDB {
   // Used to ensure that no locks are stolen from an expirable transaction
   // that has started a commit. Only transactions with an expiration time
   // should be in this map.
-  std::mutex map_mutex_;
+  boost::fibers::mutex map_mutex_;
   std::unordered_map<TransactionID, PessimisticTransaction*>
       expirable_transactions_map_;
 
   // map from name to two phase transaction instance
-  std::mutex name_map_mutex_;
+  boost::fibers::mutex name_map_mutex_;
   std::unordered_map<TransactionName, Transaction*> transactions_;
 
   // Signal that we are testing a crash scenario. Some asserts could be relaxed

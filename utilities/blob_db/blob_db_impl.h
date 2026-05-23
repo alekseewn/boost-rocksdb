@@ -8,13 +8,13 @@
 #ifndef ROCKSDB_LITE
 
 #include <atomic>
-#include <condition_variable>
+#include "port/port.h"
 #include <limits>
 #include <list>
 #include <memory>
 #include <set>
 #include <string>
-#include <thread>
+#include "port/port.h"
 #include <unordered_map>
 #include <utility>
 #include <vector>

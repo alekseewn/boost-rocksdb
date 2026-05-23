@@ -31,7 +31,7 @@ void TestKillRandom(std::string kill_point, int odds,
 
 
 void SyncPoint::Data::LoadDependency(const std::vector<SyncPointPair>& dependencies) {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(mutex_);
   successors_.clear();
   predecessors_.clear();
   cleared_points_.clear();
@@ -45,7 +45,7 @@ void SyncPoint::Data::LoadDependency(const std::vector<SyncPointPair>& dependenc
 void SyncPoint::Data::LoadDependencyAndMarkers(
   const std::vector<SyncPointPair>& dependencies,
   const std::vector<SyncPointPair>& markers) {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(mutex_);
   successors_.clear();
   predecessors_.clear();
   cleared_points_.clear();
@@ -73,7 +73,7 @@ bool SyncPoint::Data::PredecessorsAllCleared(const std::string& point) {
 }
 
 void SyncPoint::Data::ClearCallBack(const std::string& point) {
-  std::unique_lock<std::mutex> lock(mutex_);
+  std::unique_lock<boost::fibers::mutex> lock(mutex_);
   while (num_callbacks_running_ > 0) {
     cv_.wait(lock);
   }
@@ -81,7 +81,7 @@ void SyncPoint::Data::ClearCallBack(const std::string& point) {
 }
 
 void SyncPoint::Data::ClearAllCallBacks() {
-  std::unique_lock<std::mutex> lock(mutex_);
+  std::unique_lock<boost::fibers::mutex> lock(mutex_);
   while (num_callbacks_running_ > 0) {
     cv_.wait(lock);
   }
@@ -93,8 +93,8 @@ void SyncPoint::Data::Process(const std::string& point, void* cb_arg) {
     return;
   }
 
-  std::unique_lock<std::mutex> lock(mutex_);
-  auto thread_id = std::this_thread::get_id();
+  std::unique_lock<boost::fibers::mutex> lock(mutex_);
+  auto thread_id = boost::fibers::context::id();
 
   auto marker_iter = markers_.find(point);
   if (marker_iter != markers_.end()) {

@@ -241,7 +241,7 @@ void HistogramStat::Data(HistogramData * const data) const {
 }
 
 void HistogramImpl::Clear() {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(mutex_);
   stats_.Clear();
 }
 
@@ -261,7 +261,7 @@ void HistogramImpl::Merge(const Histogram& other) {
 }
 
 void HistogramImpl::Merge(const HistogramImpl& other) {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(mutex_);
   stats_.Merge(other.stats_);
 }
 

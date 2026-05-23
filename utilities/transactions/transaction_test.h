@@ -13,7 +13,7 @@
 #include <algorithm>
 #include <functional>
 #include <string>
-#include <thread>
+#include "port/port.h"
 
 #include "db/db_impl.h"
 #include "rocksdb/db.h"

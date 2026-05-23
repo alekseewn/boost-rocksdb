@@ -9,7 +9,7 @@
 #pragma once
 
 #include <stdint.h>
-#include <mutex>
+#include "port/port.h"
 #include <string>
 
 #include "rocksdb/status.h"

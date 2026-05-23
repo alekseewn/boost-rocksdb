@@ -72,7 +72,7 @@ CondVar::~CondVar() {}
 
 void CondVar::Wait() {
   // Caller must ensure that mutex is held prior to calling this method
-  std::unique_lock<std::mutex> lk(mu_->getLock(), std::adopt_lock);
+  std::unique_lock<boost::fibers::mutex> lk(mu_->getLock(), std::adopt_lock);
 #ifndef NDEBUG
   mu_->locked_ = false;
 #endif
@@ -99,7 +99,7 @@ bool CondVar::TimedWait(uint64_t abs_time_us) {
     (usAbsTime > usNow) ? (usAbsTime - usNow) : microseconds::zero();
 
   // Caller must ensure that mutex is held prior to calling this method
-  std::unique_lock<std::mutex> lk(mu_->getLock(), std::adopt_lock);
+  std::unique_lock<boost::fibers::mutex> lk(mu_->getLock(), std::adopt_lock);
 #ifndef NDEBUG
   mu_->locked_ = false;
 #endif

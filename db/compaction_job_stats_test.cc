@@ -14,10 +14,10 @@
 #include <inttypes.h>
 #include <algorithm>
 #include <iostream>
-#include <mutex>
+#include "port/port.h"
 #include <queue>
 #include <set>
-#include <thread>
+#include "port/port.h"
 #include <unordered_set>
 #include <utility>
 
@@ -435,7 +435,7 @@ class CompactionJobStatsChecker : public EventListener {
       verify_next_comp_io_stats_ = false;
     }
 
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<boost::fibers::mutex> lock(mutex_);
     if (expected_stats_.size()) {
       Verify(ci.stats, expected_stats_.front());
       expected_stats_.pop();
@@ -500,7 +500,7 @@ class CompactionJobStatsChecker : public EventListener {
   // verify the CompactionJobStats returned by the OnCompactionCompleted()
   // callback.
   void AddExpectedStats(const CompactionJobStats& stats) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<boost::fibers::mutex> lock(mutex_);
     expected_stats_.push(stats);
   }
 
@@ -511,7 +511,7 @@ class CompactionJobStatsChecker : public EventListener {
   bool verify_next_comp_io_stats() const { return verify_next_comp_io_stats_; }
 
  private:
-  std::mutex mutex_;
+  boost::fibers::mutex mutex_;
   std::queue<CompactionJobStats> expected_stats_;
   bool compression_enabled_;
   bool verify_next_comp_io_stats_;

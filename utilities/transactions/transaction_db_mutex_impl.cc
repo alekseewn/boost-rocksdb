@@ -8,9 +8,9 @@
 #include "utilities/transactions/transaction_db_mutex_impl.h"
 
 #include <chrono>
-#include <condition_variable>
+#include "port/port.h"
 #include <functional>
-#include <mutex>
+#include "port/port.h"
 
 #include "rocksdb/utilities/transaction_db_mutex.h"
 
@@ -30,7 +30,7 @@ class TransactionDBMutexImpl : public TransactionDBMutex {
   friend class TransactionDBCondVarImpl;
 
  private:
-  std::mutex mutex_;
+  boost::fibers::mutex mutex_;
 };
 
 class TransactionDBCondVarImpl : public TransactionDBCondVar {
@@ -48,7 +48,7 @@ class TransactionDBCondVarImpl : public TransactionDBCondVar {
   void NotifyAll() override { cv_.notify_all(); }
 
  private:
-  std::condition_variable cv_;
+  boost::fibers::condition_variable_any cv_;
 };
 
 std::shared_ptr<TransactionDBMutex>
@@ -95,7 +95,7 @@ Status TransactionDBCondVarImpl::Wait(
     std::shared_ptr<TransactionDBMutex> mutex) {
   auto mutex_impl = reinterpret_cast<TransactionDBMutexImpl*>(mutex.get());
 
-  std::unique_lock<std::mutex> lock(mutex_impl->mutex_, std::adopt_lock);
+  std::unique_lock<boost::fibers::mutex> lock(mutex_impl->mutex_, std::adopt_lock);
   cv_.wait(lock);
 
   // Make sure unique_lock doesn't unlock mutex when it destructs
@@ -109,7 +109,7 @@ Status TransactionDBCondVarImpl::WaitFor(
   Status s;
 
   auto mutex_impl = reinterpret_cast<TransactionDBMutexImpl*>(mutex.get());
-  std::unique_lock<std::mutex> lock(mutex_impl->mutex_, std::adopt_lock);
+  std::unique_lock<boost::fibers::mutex> lock(mutex_impl->mutex_, std::adopt_lock);
 
   if (timeout_time < 0) {
     // If timeout is negative, do not use a timeout
@@ -119,7 +119,7 @@ Status TransactionDBCondVarImpl::WaitFor(
     auto cv_status = cv_.wait_for(lock, duration);
 
     // Check if the wait stopped due to timing out.
-    if (cv_status == std::cv_status::timeout) {
+    if (cv_status == boost::fibers::cv_status::timeout) {
       s = Status::TimedOut(Status::SubCode::kMutexTimeout);
     }
   }

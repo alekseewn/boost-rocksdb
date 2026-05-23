@@ -24,10 +24,10 @@
 
 #include <assert.h>
 #include <chrono>
-#include <condition_variable>
+#include "port/port.h"
 #include <functional>
 #include <queue>
-#include <thread>
+#include "port/port.h"
 #include <utility>
 #include <vector>
 
@@ -79,7 +79,7 @@ class TimerQueue {
     item.period = milliseconds;
     item.handler = std::move(handler);
 
-    std::unique_lock<std::mutex> lk(m_mtx);
+    std::unique_lock<boost::fibers::mutex> lk(m_mtx);
     uint64_t id = ++m_idcounter;
     item.id = id;
     m_items.push(std::move(item));
@@ -100,7 +100,7 @@ class TimerQueue {
     // that handler on a new item at the top for immediate execution
     // The timer thread will then ignore the original item, since it has no
     // handler.
-    std::unique_lock<std::mutex> lk(m_mtx);
+    std::unique_lock<boost::fibers::mutex> lk(m_mtx);
     for (auto&& item : m_items.getContainer()) {
       if (item.id == id && item.handler) {
         WorkItem newItem;
@@ -125,7 +125,7 @@ class TimerQueue {
   size_t cancelAll() {
     // Setting all "end" to 0 (for immediate execution) is ok,
     // since it maintains the heap integrity
-    std::unique_lock<std::mutex> lk(m_mtx);
+    std::unique_lock<boost::fibers::mutex> lk(m_mtx);
     m_cancel = true;
     for (auto&& item : m_items.getContainer()) {
       if (item.id && item.handler) {
@@ -145,7 +145,7 @@ class TimerQueue {
   TimerQueue& operator=(const TimerQueue&) = delete;
 
   void run() {
-    std::unique_lock<std::mutex> lk(m_mtx);
+    std::unique_lock<boost::fibers::mutex> lk(m_mtx);
     while (!m_finish) {
       auto end = calcWaitTime_lock();
       if (end.first) {
@@ -183,7 +183,7 @@ class TimerQueue {
     return std::make_pair(false, Clock::time_point());
   }
 
-  void checkWork(std::unique_lock<std::mutex>* lk) {
+  void checkWork(std::unique_lock<boost::fibers::mutex>* lk) {
     while (m_items.size() && m_items.top().end <= Clock::now()) {
       WorkItem item(m_items.top());
       m_items.pop();
@@ -208,7 +208,7 @@ class TimerQueue {
   bool m_finish = false;
   bool m_cancel = false;
   uint64_t m_idcounter = 0;
-  std::condition_variable m_checkWork;
+  boost::fibers::condition_variable_any m_checkWork;
 
   struct WorkItem {
     Clock::time_point end;
@@ -218,7 +218,7 @@ class TimerQueue {
     bool operator>(const WorkItem& other) const { return end > other.end; }
   };
 
-  std::mutex m_mtx;
+  boost::fibers::mutex m_mtx;
   // Inheriting from priority_queue, so we can access the internal container
   class Queue : public std::priority_queue<WorkItem, std::vector<WorkItem>,
                                            std::greater<WorkItem>> {

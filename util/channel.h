@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include <condition_variable>
-#include <mutex>
+#include "port/port.h"
+#include "port/port.h"
 #include <queue>
 #include <utility>
 
@@ -21,24 +21,24 @@ class channel {
   void operator=(const channel&) = delete;
 
   void sendEof() {
-    std::lock_guard<std::mutex> lk(lock_);
+    std::lock_guard<boost::fibers::mutex> lk(lock_);
     eof_ = true;
     cv_.notify_all();
   }
 
   bool eof() {
-    std::lock_guard<std::mutex> lk(lock_);
+    std::lock_guard<boost::fibers::mutex> lk(lock_);
     return buffer_.empty() && eof_;
   }
 
-  size_t size() const {
-    std::lock_guard<std::mutex> lk(lock_);
+  size_t size() {
+    std::lock_guard<boost::fibers::mutex> lk(lock_);
     return buffer_.size();
   }
 
   // writes elem to the queue
   void write(T&& elem) {
-    std::unique_lock<std::mutex> lk(lock_);
+    std::unique_lock<boost::fibers::mutex> lk(lock_);
     buffer_.emplace(std::forward<T>(elem));
     cv_.notify_one();
   }
@@ -47,7 +47,7 @@ class channel {
   /// is available.
   // returns false if EOF
   bool read(T& elem) {
-    std::unique_lock<std::mutex> lk(lock_);
+    std::unique_lock<boost::fibers::mutex> lk(lock_);
     cv_.wait(lk, [&] { return eof_ || !buffer_.empty(); });
     if (eof_ && buffer_.empty()) {
       return false;
@@ -59,8 +59,8 @@ class channel {
   }
 
  private:
-  std::condition_variable cv_;
-  std::mutex lock_;
+  boost::fibers::condition_variable_any cv_;
+  boost::fibers::mutex lock_;
   std::queue<T> buffer_;
   bool eof_;
 };

@@ -20,7 +20,7 @@ int main() {
 #include <cstdio>
 #include <cstdlib>
 #include <sstream>
-#include <thread>
+#include "port/port.h"
 
 #include "db/db_test_util.h"
 #include "rocksdb/db.h"
@@ -82,7 +82,7 @@ class TraceAnalyzerTest : public testing::Test {
     single_iter->Seek("a");
     single_iter->SeekForPrev("b");
     delete single_iter;
-    std::this_thread::sleep_for (std::chrono::seconds(1));
+    boost::this_fiber::sleep_for (std::chrono::seconds(1));
 
     db_->Get(ro, "g", &value);
 

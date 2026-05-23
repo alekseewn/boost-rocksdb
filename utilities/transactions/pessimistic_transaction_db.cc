@@ -536,18 +536,18 @@ Status WriteCommittedTxnDB::Write(
 void PessimisticTransactionDB::InsertExpirableTransaction(
     TransactionID tx_id, PessimisticTransaction* tx) {
   assert(tx->GetExpirationTime() > 0);
-  std::lock_guard<std::mutex> lock(map_mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(map_mutex_);
   expirable_transactions_map_.insert({tx_id, tx});
 }
 
 void PessimisticTransactionDB::RemoveExpirableTransaction(TransactionID tx_id) {
-  std::lock_guard<std::mutex> lock(map_mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(map_mutex_);
   expirable_transactions_map_.erase(tx_id);
 }
 
 bool PessimisticTransactionDB::TryStealingExpiredTransactionLocks(
     TransactionID tx_id) {
-  std::lock_guard<std::mutex> lock(map_mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(map_mutex_);
 
   auto tx_it = expirable_transactions_map_.find(tx_id);
   if (tx_it == expirable_transactions_map_.end()) {
@@ -568,7 +568,7 @@ void PessimisticTransactionDB::ReinitializeTransaction(
 
 Transaction* PessimisticTransactionDB::GetTransactionByName(
     const TransactionName& name) {
-  std::lock_guard<std::mutex> lock(name_map_mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(name_map_mutex_);
   auto it = transactions_.find(name);
   if (it == transactions_.end()) {
     return nullptr;
@@ -581,7 +581,7 @@ void PessimisticTransactionDB::GetAllPreparedTransactions(
     std::vector<Transaction*>* transv) {
   assert(transv);
   transv->clear();
-  std::lock_guard<std::mutex> lock(name_map_mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(name_map_mutex_);
   for (auto it = transactions_.begin(); it != transactions_.end(); it++) {
     if (it->second->GetState() == Transaction::PREPARED) {
       transv->push_back(it->second);
@@ -607,13 +607,13 @@ void PessimisticTransactionDB::RegisterTransaction(Transaction* txn) {
   assert(txn->GetName().length() > 0);
   assert(GetTransactionByName(txn->GetName()) == nullptr);
   assert(txn->GetState() == Transaction::STARTED);
-  std::lock_guard<std::mutex> lock(name_map_mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(name_map_mutex_);
   transactions_[txn->GetName()] = txn;
 }
 
 void PessimisticTransactionDB::UnregisterTransaction(Transaction* txn) {
   assert(txn);
-  std::lock_guard<std::mutex> lock(name_map_mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(name_map_mutex_);
   auto it = transactions_.find(txn->GetName());
   assert(it != transactions_.end());
   transactions_.erase(it);

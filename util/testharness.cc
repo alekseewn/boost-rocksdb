@@ -9,7 +9,7 @@
 
 #include "util/testharness.h"
 #include <string>
-#include <thread>
+#include "port/port.h"
 
 namespace rocksdb {
 namespace test {
@@ -31,7 +31,7 @@ std::string TmpDir(Env* env) {
 }
 
 std::string PerThreadDBPath(std::string dir, std::string name) {
-  size_t tid = std::hash<std::thread::id>()(std::this_thread::get_id());
+  size_t tid = std::hash<boost::fibers::context::id>()(boost::fibers::context::id());
   return dir + "/" + name + "_" + std::to_string(tid);
 }
 

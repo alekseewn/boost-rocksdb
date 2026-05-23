@@ -8,7 +8,7 @@
 
 #include <stdint.h>
 #include <string.h>
-#include <thread>
+#include "port/port.h"
 #include <utility>
 
 #include "port/likely.h"
@@ -28,7 +28,7 @@ Random* Random::GetTLSInstance() {
 
   auto rv = tls_instance;
   if (UNLIKELY(rv == nullptr)) {
-    size_t seed = std::hash<std::thread::id>()(std::this_thread::get_id());
+    size_t seed = std::hash<boost::fibers::context::id>()(boost::fibers::context::id());
     rv = new (&tls_instance_bytes) Random((uint32_t)seed);
     tls_instance = rv;
   }

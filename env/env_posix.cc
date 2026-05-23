@@ -9,6 +9,15 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <boost/fiber/algo/io_uring_stealing.hpp>
+#include <boost/fiber/context.hpp>
+#include <boost/fiber/fiber.hpp>
+#include <boost/thread/detail/thread.hpp>
+#include <cstdint>
+#include <functional>
+#include <string>
+#include <thread>
+#include "port/port.h"
 #if defined(OS_LINUX)
 #include <linux/fs.h>
 #endif
@@ -67,6 +76,10 @@
 #define EXT4_SUPER_MAGIC 0xEF53
 #endif
 
+void LOG_INFO(char* log) {
+  std::cout << log << std::endl;
+}
+
 namespace rocksdb {
 
 namespace {
@@ -119,7 +132,8 @@ class PosixEnv : public Env {
   PosixEnv();
 
   ~PosixEnv() override {
-    LOG_INFO("global PosixEnv destruct: Join thread pools");
+    LOG_INFO("global Posix Env destruct: Join thread pools");
+
     for (auto& tid : threads_to_join_) {
       tid.join();
     }
@@ -759,9 +773,8 @@ class PosixEnv : public Env {
     assert(thread_status_updater_);
     return thread_status_updater_->GetThreadList(thread_list);
   }
-
   static uint64_t gettid() {
-    return (uint64_t) photon::CURRENT;
+    return std::hash<boost::fibers::context::id>{}(boost::fibers::context::id());
   }
 
   uint64_t GetThreadID() const override { return gettid(); }
@@ -840,7 +853,7 @@ class PosixEnv : public Env {
     return 0;
   }
 
-  void SleepForMicroseconds(int micros) override { std::this_thread::sleep_for(std::chrono::microseconds(micros)); }
+  void SleepForMicroseconds(int micros) override { boost::this_fiber::sleep_for(std::chrono::microseconds(micros)); }
 
   Status GetHostName(char* name, uint64_t len) override {
     int ret = gethostname(name, static_cast<size_t>(len));
@@ -1001,8 +1014,8 @@ class PosixEnv : public Env {
   size_t page_size_;
 
   std::vector<ThreadPoolImpl> thread_pools_;
-  std::mutex mu_;
-  std::vector<std::thread> threads_to_join_;
+  boost::fibers::mutex mu_;
+  std::vector<boost::fibers::fiber> threads_to_join_;
   // If true, allow non owner read access for db files. Otherwise, non-owner
   //  has no access to db files.
   bool allow_non_owner_access_;
@@ -1022,6 +1035,7 @@ PosixEnv::PosixEnv()
     thread_pools_[pool_id].SetHostEnv(this);
   }
   thread_status_updater_ = CreateThreadStatusUpdater();
+  LOG_INFO("global PosixEnv construct end");
 }
 
 void PosixEnv::Schedule(void (*function)(void* arg1), void* arg, Priority pri,
@@ -1045,6 +1059,7 @@ struct StartThreadState {
 };
 
 static void* StartThreadWrapper(void* arg) {
+  LOG_INFO("Posix Env StartThreadWrapper");
   StartThreadState* state = reinterpret_cast<StartThreadState*>(arg);
   state->user_function(state->arg);
   delete state;
@@ -1055,8 +1070,8 @@ void PosixEnv::StartThread(void (*function)(void* arg), void* arg) {
   StartThreadState* state = new StartThreadState;
   state->user_function = function;
   state->arg = arg;
-  std::lock_guard<std::mutex> lock(mu_);
-  threads_to_join_.emplace_back(std::thread(&StartThreadWrapper, state));
+  std::lock_guard<boost::fibers::mutex> lock(mu_);
+  threads_to_join_.emplace_back(boost::fibers::fiber(&StartThreadWrapper, state));
 }
 
 void PosixEnv::WaitForJoin() {
@@ -1093,27 +1108,33 @@ std::string Env::GenerateUniqueId() {
   return uuid2;
 }
 
-PhotonEnv::PhotonEnv(int vcpu_num, int ev_engine) {
-    LOG_INFO("Begin init Photon Env");
-    set_log_output_level(ALOG_INFO);
-    int ret = photon::init(ev_engine, photon::INIT_IO_NONE);
-    if (ret != 0) {
-        LOG_FATAL("Photon init failed");
-        abort();
+BoostEnv::BoostEnv(int vcpu_num, int ev_engine) {
+    LOG_INFO("Begin init BOOST Env");
+    for (int i = 0; i < NUM_WORKER; ++i) {
+      workers.emplace_back([this]() {
+            boost::fibers::use_scheduling_algorithm<boost::fibers::algo::io_uring_stealing>(NUM_WORKER + 1);
+            mtx.lock();
+            // Main файбер в ожидании, можно исполнять другие
+            cv.wait(mtx);
+            mtx.unlock();           
+        });
     }
-    ret = photon_std::work_pool_init(vcpu_num, ev_engine, photon::INIT_IO_NONE);
-    if (ret != 0) {
-        LOG_FATAL("Work-pool init failed");
-        abort();
-    }
-    LOG_INFO("End init Photon Env");
+    boost::fibers::use_scheduling_algorithm<boost::fibers::algo::io_uring_stealing>(NUM_WORKER + 1);
+    LOG_INFO("End init BOOST Env");
 }
 
-PhotonEnv::~PhotonEnv() {
-    LOG_INFO("Begin destruct Photon Env");
-    photon_std::work_pool_fini();
-    photon::fini();
-    LOG_INFO("End destruct Photon Env");
+BoostEnv::~BoostEnv() {
+    LOG_INFO("Begin destruct BOOST Env");
+
+    cv.notify_all();
+    for (auto i = workers.rbegin(); i != workers.rend(); i++) {
+      i->join();
+    }
+    // worker.join();
+
+    // photon_std::work_pool_fini();
+    // photon::fini();
+    LOG_INFO("End destruct BOOST Env");
 }
 
 //
@@ -1131,7 +1152,7 @@ Env* Env::Default() {
   // the destructor of static PosixEnv will go first, then the
   // the singletons of ThreadLocalPtr.
 #ifdef INIT_PHOTON_IN_ENV
-  PhotonEnv::Singleton();
+  BoostEnv::Singleton();
 #endif
   ThreadLocalPtr::InitSingletons();
   CompressionContextCache::InitSingleton();

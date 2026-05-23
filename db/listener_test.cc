@@ -80,7 +80,7 @@ class TestPropertiesCollectorFactory : public TablePropertiesCollectorFactory {
 class TestCompactionListener : public EventListener {
  public:
   void OnCompactionCompleted(DB *db, const CompactionJobInfo& ci) override {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<boost::fibers::mutex> lock(mutex_);
     compacted_dbs_.push_back(db);
     ASSERT_GT(ci.input_files.size(), 0U);
     ASSERT_GT(ci.output_files.size(), 0U);
@@ -99,7 +99,7 @@ class TestCompactionListener : public EventListener {
   }
 
   std::vector<DB*> compacted_dbs_;
-  std::mutex mutex_;
+  boost::fibers::mutex mutex_;
 };
 
 TEST_F(EventListenerTest, OnSingleDBCompactionTest) {
@@ -426,12 +426,12 @@ TEST_F(EventListenerTest, DisableBGCompaction) {
 class TestCompactionReasonListener : public EventListener {
  public:
   void OnCompactionCompleted(DB* /*db*/, const CompactionJobInfo& ci) override {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<boost::fibers::mutex> lock(mutex_);
     compaction_reasons_.push_back(ci.compaction_reason);
   }
 
   std::vector<CompactionReason> compaction_reasons_;
-  std::mutex mutex_;
+  boost::fibers::mutex mutex_;
 };
 
 TEST_F(EventListenerTest, CompactionReasonLevel) {

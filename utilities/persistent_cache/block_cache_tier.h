@@ -17,7 +17,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <thread>
+#include "port/port.h"
 
 #include "rocksdb/cache.h"
 #include "rocksdb/comparator.h"

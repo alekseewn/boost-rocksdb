@@ -13,7 +13,7 @@ namespace rocksdb {
 
 void FlushScheduler::ScheduleFlush(ColumnFamilyData* cfd) {
 #ifndef NDEBUG
-  std::lock_guard<std::mutex> lock(checking_mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(checking_mutex_);
   assert(checking_set_.count(cfd) == 0);
   checking_set_.insert(cfd);
 #endif  // NDEBUG
@@ -33,7 +33,7 @@ void FlushScheduler::ScheduleFlush(ColumnFamilyData* cfd) {
 
 ColumnFamilyData* FlushScheduler::TakeNextColumnFamily() {
 #ifndef NDEBUG
-  std::lock_guard<std::mutex> lock(checking_mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(checking_mutex_);
 #endif  // NDEBUG
   while (true) {
     if (head_.load(std::memory_order_relaxed) == nullptr) {
@@ -66,7 +66,7 @@ ColumnFamilyData* FlushScheduler::TakeNextColumnFamily() {
 
 bool FlushScheduler::Empty() {
 #ifndef NDEBUG
-  std::lock_guard<std::mutex> lock(checking_mutex_);
+  std::lock_guard<boost::fibers::mutex> lock(checking_mutex_);
 #endif  // NDEBUG
   auto rv = head_.load(std::memory_order_relaxed) == nullptr;
 #ifndef NDEBUG

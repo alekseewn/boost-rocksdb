@@ -10,7 +10,7 @@
 #include "util/file_reader_writer.h"
 
 #include <algorithm>
-#include <mutex>
+#include "port/port.h"
 
 #include "monitoring/histogram.h"
 #include "monitoring/iostats_context_imp.h"
@@ -601,7 +601,7 @@ class ReadaheadRandomAccessFile : public RandomAccessFile {
      return file_->Read(offset, n, result, scratch);
    }
 
-   std::unique_lock<std::mutex> lk(lock_);
+   std::unique_lock<boost::fibers::mutex> lk(lock_);
 
    size_t cached_len = 0;
    // Check if there is a cache hit, means that [offset, offset + n) is either
@@ -704,7 +704,7 @@ private:
   const size_t alignment_;
   size_t               readahead_size_;
 
-  mutable std::mutex lock_;
+  mutable boost::fibers::mutex lock_;
   mutable AlignedBuffer buffer_;
   mutable uint64_t buffer_offset_;
 };

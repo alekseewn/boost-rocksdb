@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <cassert>
 #include <cstdlib>
-#include <mutex>
+#include "port/port.h"
 #include <unordered_map>
 #include <vector>
 
@@ -40,7 +40,7 @@ class LogsWithPrepTracker {
     uint64_t cnt;  // number of prepared sections in the log
   };
   std::vector<LogCnt> logs_with_prep_;
-  std::mutex logs_with_prep_mutex_;
+  boost::fibers::mutex logs_with_prep_mutex_;
 
   // REQUIRES: prepared_section_completed_mutex_ held
   //
@@ -55,7 +55,7 @@ class LogsWithPrepTracker {
   // an equal value in prepared_section_completed_ we erase the log from
   // both logs_with_prep_ and prepared_section_completed_.
   std::unordered_map<uint64_t, uint64_t> prepared_section_completed_;
-  std::mutex prepared_section_completed_mutex_;
+  boost::fibers::mutex prepared_section_completed_mutex_;
 
 };
 }  // namespace rocksdb

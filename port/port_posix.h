@@ -10,12 +10,20 @@
 // See port_example.h for documentation for the following types/functions.
 
 #pragma once
-
+#include <boost/context/fiber_fcontext.hpp>
+#include <boost/fiber/fiber.hpp>
+#include <boost/fiber/mutex.hpp>  
+#include <boost/fiber/context.hpp>
+#include <boost/fiber/condition_variable.hpp>
+#include <boost/fiber/recursive_mutex.hpp>
+#include <boost/thread/thread.hpp>
+/*
 #include <photon/photon.h>
 #include <photon/thread/std-compat.h>
 #include <photon/thread/thread-local.h>
 #include <photon/io/iouring-wrapper.h>
 #include <photon/common/alog.h>
+*/
 // size_t printf formatting named in the manner of C99 standard formatting
 // strings such as PRIu64
 // in fact, we could use that one
@@ -117,7 +125,7 @@ class Mutex {
 
  private:
   friend class CondVar;
-  photon::mutex mu_;
+  boost::fibers::recursive_mutex mu_;
 #ifndef NDEBUG
   bool locked_;
 #endif
@@ -139,7 +147,7 @@ class RWMutex {
   void AssertHeld() { }
 
  private:
-  photon::rwlock mu_; // the underlying platform mutex
+  boost::fibers::recursive_mutex mu_; // the underlying platform mutex
 
   // No copying allowed
   RWMutex(const RWMutex&);
@@ -156,11 +164,11 @@ class CondVar {
   void Signal();
   void SignalAll();
  private:
-  photon::condition_variable cv_;
+  boost::fibers::condition_variable_any cv_;
   Mutex* mu_;
 };
 
-using Thread = std::thread;
+using Thread = boost::fibers::fiber;
 
 static inline void AsmVolatilePause() {
 #if defined(__i386__) || defined(__x86_64__)

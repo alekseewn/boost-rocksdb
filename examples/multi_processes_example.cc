@@ -15,12 +15,13 @@
 // instance exits, this process will keep running until you hit 'CTRL+C'.
 
 #include <inttypes.h>
+#include <boost/fiber/fiber.hpp>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
 #include <string>
-#include <thread>
+#include "port/port.h"
 #include <vector>
 
 #if defined(OS_LINUX)
@@ -281,7 +282,7 @@ void RunSecondary() {
   ropts.verify_checksums = true;
   ropts.total_order_seek = true;
 
-  std::vector<std::thread> test_threads;
+  std::vector<boost::fibers::fiber> test_threads;
   test_threads.emplace_back([&]() {
     while (1 == ShouldSecondaryWait().load(std::memory_order_relaxed)) {
       std::unique_ptr<Iterator> iter(db->NewIterator(ropts));
@@ -330,7 +331,7 @@ void RunSecondary() {
         }
       }
     }
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    boost::this_fiber::sleep_for(std::chrono::seconds(1));
   }
   s = db->TryCatchUpWithPrimary();
   if (!s.ok()) {

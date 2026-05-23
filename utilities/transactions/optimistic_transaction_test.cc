@@ -7,7 +7,7 @@
 
 #include <functional>
 #include <string>
-#include <thread>
+#include "port/port.h"
 
 #include "rocksdb/db.h"
 #include "rocksdb/utilities/optimistic_transaction_db.h"
@@ -1289,7 +1289,7 @@ Status OptimisticTransactionStressTestInserter(OptimisticTransactionDB* db,
                                                const size_t num_transactions,
                                                const size_t num_sets,
                                                const size_t num_keys_per_set) {
-  size_t seed = std::hash<std::thread::id>()(std::this_thread::get_id());
+  size_t seed = std::hash<boost::fibers::context::id>()(boost::fibers::context::id());
   Random64 _rand(seed);
   WriteOptions write_options;
   ReadOptions read_options;

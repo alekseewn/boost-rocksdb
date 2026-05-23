@@ -17,15 +17,29 @@
 #pragma once
 
 #include <stdint.h>
+#include <boost/fiber/condition_variable.hpp>
+#include <boost/fiber/mutex.hpp>
 #include <cstdarg>
+#include <cstddef>
 #include <functional>
 #include <limits>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 #include "rocksdb/status.h"
 #include "rocksdb/thread_status.h"
 #include "port/port.h"
+
+
+#define SHIFT(n) (1 << n)
+
+const uint64_t INIT_EVENT_NONE = 0;
+const uint64_t INIT_EVENT_EPOLL = SHIFT(0);
+const uint64_t INIT_EVENT_IOURING = SHIFT(1);
+const uint64_t INIT_EVENT_SELECT = SHIFT(2);
+const uint64_t INIT_EVENT_KQUEUE = SHIFT(3);
+const uint64_t INIT_EVENT_IOCP = SHIFT(4);
 
 #ifdef _WIN32
 // Windows API macro interference
@@ -1455,26 +1469,30 @@ Status NewHdfsEnv(Env** hdfs_env, const std::string& fsname);
 // This is a factory method for TimedEnv defined in utilities/env_timed.cc.
 Env* NewTimedEnv(Env* base_env);
 
-class PhotonEnv {
+class BoostEnv {
 public:
-    static PhotonEnv& Singleton() {
+    static BoostEnv& Singleton() {
         // 8 vCPU. Hardcoded for now.
 #ifdef PHOTON_ENABLE_URING
-        static PhotonEnv instance(8, photon::INIT_EVENT_IOURING);
+        static BoostEnv instance(8, INIT_EVENT_IOURING);
 #else
-        static PhotonEnv instance(8, photon::INIT_EVENT_EPOLL);
+        static BoostEnv instance(8, INIT_EVENT_EPOLL);
 #endif
         return instance;
     }
 
-    PhotonEnv(PhotonEnv const&) = delete;
-    PhotonEnv(PhotonEnv&&) = delete;
-    PhotonEnv& operator=(PhotonEnv const&) = delete;
-    PhotonEnv& operator=(PhotonEnv&&) = delete;
+    BoostEnv(BoostEnv const&) = delete;
+    BoostEnv(BoostEnv&&) = delete;
+    BoostEnv& operator=(BoostEnv const&) = delete;
+    BoostEnv& operator=(BoostEnv&&) = delete;
 
 private:
-    PhotonEnv(int vcpu_num, int ev_engine);
-    ~PhotonEnv();
+    BoostEnv(int vcpu_num, int ev_engine);
+    ~BoostEnv();
+    const size_t NUM_WORKER = 8;
+    std::vector<std::thread> workers;
+    boost::fibers::mutex mtx;
+    boost::fibers::condition_variable_any cv;
 };
 
 }  // namespace rocksdb

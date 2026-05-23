@@ -7,7 +7,7 @@
 
 #include <stdint.h>
 #include <atomic>
-#include <mutex>
+#include "port/port.h"
 #include <set>
 
 namespace rocksdb {
@@ -40,7 +40,7 @@ class FlushScheduler {
 
   std::atomic<Node*> head_;
 #ifndef NDEBUG
-  std::mutex checking_mutex_;
+  boost::fibers::mutex checking_mutex_;
   std::set<ColumnFamilyData*> checking_set_;
 #endif  // NDEBUG
 };

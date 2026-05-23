@@ -17,21 +17,21 @@ std::string kDBPath = "/tmp/rocksdb_simple_example";
 int main() {
   DB* db;
   Options options;
-  // Optimize RocksDB. This is the easiest way to get RocksDB to perform well
+  // // // Optimize RocksDB. This is the easiest way to get RocksDB to perform well
   options.IncreaseParallelism();
   options.OptimizeLevelStyleCompaction();
-  // create the DB if it's not already present
+  // // // create the DB if it's not already present
   options.create_if_missing = true;
 
-  // open DB
+  // // // open DB
   Status s = DB::Open(options, kDBPath, &db);
   assert(s.ok());
 
-  // Put key-value
+  // // Put key-value
   s = db->Put(WriteOptions(), "key1", "value");
   assert(s.ok());
   std::string value;
-  // get value
+  // // get value
   s = db->Get(ReadOptions(), "key1", &value);
   assert(s.ok());
   assert(value == "value");

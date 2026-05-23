@@ -26,11 +26,11 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <atomic>
-#include <condition_variable>
+#include "port/port.h"
 #include <cstddef>
 #include <memory>
-#include <mutex>
-#include <thread>
+#include "port/port.h"
+#include "port/port.h"
 #include <unordered_map>
 
 #include "db/db_impl.h"
@@ -1491,7 +1491,7 @@ class ReporterAgent {
 
   ~ReporterAgent() {
     {
-      std::unique_lock<std::mutex> lk(mutex_);
+      std::unique_lock<boost::fibers::mutex> lk(mutex_);
       stop_ = true;
       stop_cv_.notify_all();
     }
@@ -1510,7 +1510,7 @@ class ReporterAgent {
     auto time_started = env_->NowMicros();
     while (true) {
       {
-        std::unique_lock<std::mutex> lk(mutex_);
+        std::unique_lock<boost::fibers::mutex> lk(mutex_);
         if (stop_ ||
             stop_cv_.wait_for(lk, std::chrono::seconds(report_interval_secs_),
                               [&]() { return stop_; })) {
@@ -1547,9 +1547,9 @@ class ReporterAgent {
   int64_t last_report_;
   const uint64_t report_interval_secs_;
   rocksdb::port::Thread reporting_thread_;
-  std::mutex mutex_;
+  boost::fibers::mutex mutex_;
   // will notify on stop
-  std::condition_variable stop_cv_;
+  boost::fibers::condition_variable_any stop_cv_;
   bool stop_;
 };
 

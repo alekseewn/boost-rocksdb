@@ -4,8 +4,11 @@
 //  (found in the LICENSE.Apache file in the root directory).
 //
 
+#include <boost/fiber/fss.hpp>
+#include <boost/thread/tss.hpp>
 #include <sstream>
 #include "monitoring/perf_context_imp.h"
+#include "monitoring/perf_level_imp.h"
 
 namespace rocksdb {
 
@@ -15,7 +18,7 @@ PerfContext perf_context;
 #if defined(OS_SOLARIS)
 __thread PerfContext perf_context_;
 #else
-photon::thread_local_ptr<PerfContext> perf_context;
+FiberLocal<PerfContext> perf_context;
 #endif
 #endif
 

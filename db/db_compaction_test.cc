@@ -58,12 +58,12 @@ class FlushedFileCollector : public EventListener {
   ~FlushedFileCollector() override {}
 
   void OnFlushCompleted(DB* /*db*/, const FlushJobInfo& info) override {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<boost::fibers::mutex> lock(mutex_);
     flushed_files_.push_back(info.file_path);
   }
 
   std::vector<std::string> GetFlushedFiles() {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<boost::fibers::mutex> lock(mutex_);
     std::vector<std::string> result;
     for (auto fname : flushed_files_) {
       result.push_back(fname);
@@ -75,7 +75,7 @@ class FlushedFileCollector : public EventListener {
 
  private:
   std::vector<std::string> flushed_files_;
-  std::mutex mutex_;
+  boost::fibers::mutex mutex_;
 };
 
 class CompactionStatsCollector : public EventListener {

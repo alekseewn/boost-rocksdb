@@ -30,7 +30,7 @@ struct DeadlockInfoBuffer {
  private:
   std::vector<DeadlockPath> paths_buffer_;
   uint32_t buffer_idx_;
-  std::mutex paths_buffer_mutex_;
+  boost::fibers::mutex paths_buffer_mutex_;
   std::vector<DeadlockPath> Normalize();
 
  public:
@@ -111,7 +111,7 @@ class TransactionLockMgr {
   std::unique_ptr<ThreadLocalPtr> lock_maps_cache_;
 
   // Must be held when modifying wait_txn_map_ and rev_wait_txn_map_.
-  std::mutex wait_txn_map_mutex_;
+  boost::fibers::mutex wait_txn_map_mutex_;
 
   // Maps from waitee -> number of waiters.
   HashMap<TransactionID, int> rev_wait_txn_map_;

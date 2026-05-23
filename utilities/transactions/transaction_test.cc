@@ -14,7 +14,7 @@
 #include <algorithm>
 #include <functional>
 #include <string>
-#include <thread>
+#include "port/port.h"
 
 #include "db/db_impl.h"
 #include "rocksdb/db.h"
@@ -523,7 +523,7 @@ TEST_P(TransactionTest, DeadlockCycleShared) {
   // Wait until all threads are waiting on each other.
   while (checkpoints.load() != 15) {
     /* sleep override */
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    boost::this_fiber::sleep_for(std::chrono::milliseconds(100));
   }
   rocksdb::SyncPoint::GetInstance()->DisableProcessing();
   rocksdb::SyncPoint::GetInstance()->ClearAllCallBacks();
@@ -655,7 +655,7 @@ TEST_P(TransactionTest, DeadlockCycleShared) {
   // Wait until all threads are waiting on each other.
   while (checkpoints_shared.load() != 1) {
     /* sleep override */
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    boost::this_fiber::sleep_for(std::chrono::milliseconds(100));
   }
   rocksdb::SyncPoint::GetInstance()->DisableProcessing();
   rocksdb::SyncPoint::GetInstance()->ClearAllCallBacks();
@@ -729,7 +729,7 @@ TEST_P(TransactionStressTest, DeadlockCycle) {
     // Wait until all threads are waiting on each other.
     while (checkpoints.load() != len - 1) {
       /* sleep override */
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      boost::this_fiber::sleep_for(std::chrono::milliseconds(100));
     }
     rocksdb::SyncPoint::GetInstance()->DisableProcessing();
     rocksdb::SyncPoint::GetInstance()->ClearAllCallBacks();
@@ -808,7 +808,7 @@ TEST_P(TransactionStressTest, DeadlockStress) {
     keys.push_back(ToString(i));
   }
 
-  size_t tid = std::hash<std::thread::id>()(std::this_thread::get_id());
+  size_t tid = std::hash<boost::fibers::context::id>()(boost::fibers::context::id());
   Random rnd(static_cast<uint32_t>(tid));
   std::function<void(uint32_t)> stress_thread = [&](uint32_t seed) {
     std::default_random_engine g(seed);
@@ -1195,7 +1195,7 @@ TEST_P(TransactionStressTest, TwoPhaseExpirationTest) {
   ASSERT_OK(s);
 
   /* sleep override */
-  std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+  boost::this_fiber::sleep_for(std::chrono::milliseconds(1000));
 
   s = txn1->Commit();
   ASSERT_OK(s);
@@ -4958,7 +4958,7 @@ TEST_P(TransactionStressTest, ExpiredTransactionDataRace1) {
 
         // Force txn1 to expire
         /* sleep override */
-        std::this_thread::sleep_for(std::chrono::milliseconds(150));
+        boost::this_fiber::sleep_for(std::chrono::milliseconds(150));
 
         Transaction* txn2 = db->BeginTransaction(write_options, txn_options);
         Status s;
@@ -5055,14 +5055,14 @@ TEST_P(MySQLStyleTransactionTest, TransactionStressTest) {
   printf("time_seed is %" PRIu64 "\n", time_seed);  // would help to reproduce
 
   std::function<void()> call_inserter = [&] {
-    size_t thd_seed = std::hash<std::thread::id>()(std::this_thread::get_id());
+    size_t thd_seed = std::hash<boost::fibers::context::id>()(boost::fibers::context::id());
     Random64 rand(time_seed * thd_seed);
     ASSERT_OK(TransactionStressTestInserter(db, num_transactions_per_thread,
                                             num_sets, num_keys_per_set, &rand));
     finished++;
   };
   std::function<void()> call_checker = [&] {
-    size_t thd_seed = std::hash<std::thread::id>()(std::this_thread::get_id());
+    size_t thd_seed = std::hash<boost::fibers::context::id>()(boost::fibers::context::id());
     Random64 rand(time_seed * thd_seed);
     // Verify that data is consistent
     while (finished < num_workers) {
@@ -5072,7 +5072,7 @@ TEST_P(MySQLStyleTransactionTest, TransactionStressTest) {
     }
   };
   std::function<void()> call_slow_checker = [&] {
-    size_t thd_seed = std::hash<std::thread::id>()(std::this_thread::get_id());
+    size_t thd_seed = std::hash<boost::fibers::context::id>()(boost::fibers::context::id());
     Random64 rand(time_seed * thd_seed);
     // Verify that data is consistent
     while (finished < num_workers) {
@@ -5083,7 +5083,7 @@ TEST_P(MySQLStyleTransactionTest, TransactionStressTest) {
     }
   };
   std::function<void()> call_slow_inserter = [&] {
-    size_t thd_seed = std::hash<std::thread::id>()(std::this_thread::get_id());
+    size_t thd_seed = std::hash<boost::fibers::context::id>()(boost::fibers::context::id());
     Random64 rand(time_seed * thd_seed);
     uint64_t id = 0;
     // Verify that data is consistent

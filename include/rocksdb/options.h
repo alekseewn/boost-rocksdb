@@ -884,7 +884,7 @@ struct DBOptions {
   // Default: 100
   uint64_t write_thread_max_yield_usec = 100;
 
-  // The latency in microseconds after which a std::this_thread::yield
+  // The latency in microseconds after which a photon_std::this_thread::yield
   // call (sched_yield on Linux) is considered to be a signal that
   // other processes or threads would like to use the current core.
   // Increasing this makes writer threads more likely to take CPU

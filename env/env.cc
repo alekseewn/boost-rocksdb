@@ -8,8 +8,9 @@
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
 #include "rocksdb/env.h"
+#include <boost/fiber/context.hpp>
 
-#include <thread>
+#include "port/port.h"
 #include "options/db_options.h"
 #include "port/port.h"
 #include "port/sys_time.h"
@@ -39,8 +40,8 @@ std::string Env::PriorityToString(Env::Priority priority) {
 }
 
 uint64_t Env::GetThreadID() const {
-  std::hash<std::thread::id> hasher;
-  return hasher(std::this_thread::get_id());
+  std::hash<boost::fibers::context::id> hasher;
+  return hasher(boost::fibers::context::id());
 }
 
 Status Env::ReuseWritableFile(const std::string& fname,
